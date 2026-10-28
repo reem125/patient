@@ -1,0 +1,6 @@
+{
+  "name": "Vision Medical - Hansaton Hearing Aid Patient Guide",
+  "description": "Bilingual interactive guide and personalized recommendation advisor for HANSATON hearing aids by Vision Medical.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

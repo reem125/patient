@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-en: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-ar: 'Tajawal', system-ui, -apple-system, 'Segoe UI', Tahoma, Arial, sans-serif;
+    
+    /* Vision Medical Official Palette */
+    --vm-teal: #007CA6;
+    --vm-teal-dark: #006082;
+    --vm-teal-deep: #072138;
+    --vm-cyan: #0099D8;
+    --vm-cyan-light: #E0F4FB;
+    --vm-orange: #F38B21;
+    --vm-orange-dark: #D97312;
+    --vm-orange-light: #FEF3E7;
+  }
+
+  html {
+    font-family: var(--font-en);
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  html[dir="rtl"] {
+    font-family: var(--font-ar);
+  }
+
+  body {
+    background-color: #F8FBFC;
+    color: #0F172A;
+  }
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
