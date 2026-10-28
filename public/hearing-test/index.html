@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>فحص السمع | رؤية الطبية - Vision Medical Hearing Check</title>
+  <meta name="description" content="A 5-minute online hearing screening with headphones.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="9" fill="currentColor"/>
+        <path d="M8 16h2M12 11v10M16 7v18M20 11v10M24 14v4" style="stroke: var(--on-brand)" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+      </svg>
+      <span id="brandName">Hearing Check</span>
+    </div>
+    <div class="topbar-actions">
+      <a class="back-home" href="/" id="homeLink">دليل السماعات</a>
+      <button id="langToggle" class="lang-btn" type="button">English</button>
+    </div>
+  </header>
+  <div class="progress" aria-hidden="true"><div id="progressBar"></div></div>
+
+  <main id="app" class="card" tabindex="-1"></main>
+
+  <footer class="footer"><p id="footerText"></p></footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>

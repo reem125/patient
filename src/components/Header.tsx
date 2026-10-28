@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Language } from '../types/hearingAid.ts';
-import { Globe, Printer, Sparkles, BookOpen, SlidersHorizontal, Palette, RotateCcw } from 'lucide-react';
+import { Globe, Printer, Sparkles, BookOpen, SlidersHorizontal, Palette, RotateCcw, Ear } from 'lucide-react';
 
 interface HeaderProps {
   lang: Language;
@@ -126,6 +126,14 @@ export const Header: React.FC<HeaderProps> = ({
               <Palette className="w-4 h-4 text-[#F38B21]" />
               <span>{isAr ? 'دليل الألوان' : 'Color Guide'}</span>
             </button>
+
+            <a
+              href={`/hearing-test/?lang=${lang}`}
+              className="px-3 py-2 text-sm font-bold rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 text-[#C2620A] bg-[#FEF6EE] hover:bg-[#FEEAD4] border border-[#F38B21]/30"
+            >
+              <Ear className="w-4 h-4 text-[#F38B21]" />
+              <span>{isAr ? 'اختبار السمع' : 'Hearing Test'}</span>
+            </a>
           </nav>
 
           {/* Zone 3: Actions & Language Toggle */}
@@ -212,6 +220,13 @@ export const Header: React.FC<HeaderProps> = ({
           >
             {isAr ? 'الألوان' : 'Colors'}
           </button>
+          <a
+            href={`/hearing-test/?lang=${lang}`}
+            className="px-3 py-1.5 text-xs font-bold rounded-md whitespace-nowrap flex items-center gap-1 text-[#C2620A] bg-[#FEF6EE] border border-[#F38B21]/30"
+          >
+            <Ear className="w-3.5 h-3.5 text-[#F38B21]" />
+            {isAr ? 'اختبار السمع' : 'Hearing Test'}
+          </a>
         </div>
       </div>
     </header>

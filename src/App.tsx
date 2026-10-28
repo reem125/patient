@@ -130,6 +130,16 @@ export default function App() {
                     ? 'أدخل عمرك، مهنتك، أغطية رأسك، والمواقف اليومية التي تعيشها؛ لتحصل على توصية طبية فورية تحدد الطراز ومستوى الأداء (1 إلى 9) الأكثر راحة وجودة لأذنيك.'
                     : 'Input your age, profession, headwear, and weekly acoustic environments to receive an audiological match for the optimal HANSATON form factor and performance tier (1 to 9).'}
                 </p>
+
+                {/* Online hearing screening (static page in public/hearing-test) */}
+                <a
+                  href={`/hearing-test/?lang=${lang}`}
+                  className="mt-5 inline-flex items-center gap-2.5 px-5 py-3 rounded-xl bg-[#F38B21] hover:bg-[#E07A12] text-white text-sm sm:text-base font-bold shadow-md shadow-[#F38B21]/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Ear className="w-5 h-5" />
+                  <span>{isAr ? 'افحص سمعك مجانًا خلال 5 دقائق' : 'Take a free 5-minute hearing test'}</span>
+                  {isAr ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                </a>
               </div>
 
               {/* Quick Feature Badges with Vision Medical glass styling */}
