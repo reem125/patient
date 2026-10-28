@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Language } from '../types/hearingAid.ts';
-import { Globe, Printer, Sparkles, BookOpen, SlidersHorizontal, Palette } from 'lucide-react';
+import { Globe, Printer, Sparkles, BookOpen, SlidersHorizontal, Palette, RotateCcw } from 'lucide-react';
 
 interface HeaderProps {
   lang: Language;
@@ -13,6 +13,7 @@ interface HeaderProps {
   activeTab: 'advisor' | 'devices' | 'levels' | 'compare' | 'colors';
   onTabChange: (tab: 'advisor' | 'devices' | 'levels' | 'compare' | 'colors') => void;
   onPrintClick?: () => void;
+  onStartAgain?: () => void;
   hasRecommendation?: boolean;
 }
 
@@ -22,6 +23,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeTab,
   onTabChange,
   onPrintClick,
+  onStartAgain,
   hasRecommendation = false
 }) => {
   const isAr = lang === 'ar';
@@ -128,6 +130,17 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Zone 3: Actions & Language Toggle */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {hasRecommendation && onStartAgain && (
+              <button
+                onClick={onStartAgain}
+                className="px-3 py-1.5 text-xs font-bold text-amber-950 bg-[#FEF6EE] hover:bg-[#FEEAD4] border border-[#F38B21]/40 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-2xs"
+                title={isAr ? 'مسح النتائج والبدء من جديد' : 'Clear results and start again'}
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-[#F38B21]" />
+                <span className="hidden sm:inline">{isAr ? 'البدء من جديد' : 'Start Again'}</span>
+              </button>
+            )}
+
             {hasRecommendation && onPrintClick && (
               <button
                 onClick={onPrintClick}

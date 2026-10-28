@@ -24,19 +24,22 @@ import {
   ChevronLeft
 } from 'lucide-react';
 
+const DEFAULT_INITIAL_PROFILE: PatientProfile = {
+  ageGroup: '',
+  gender: '',
+  headwear: [],
+  professionCategory: '',
+  selectedSituations: [],
+  priorities: []
+};
+
 export default function App() {
   const [lang, setLang] = useState<Language>('ar');
   const [activeTab, setActiveTab] = useState<'advisor' | 'devices' | 'levels' | 'compare' | 'colors' | 'print'>('advisor');
+  const [quizSessionKey, setQuizSessionKey] = useState<number>(1);
   
   // Patient assessment state
-  const [patientProfile, setPatientProfile] = useState<PatientProfile>({
-    ageGroup: '35-54',
-    gender: 'female',
-    headwear: ['hijab'],
-    professionCategory: 'business-legal',
-    selectedSituations: ['home-conversations', 'phone-and-tv', 'business-meetings'],
-    priorities: ['rechargeable']
-  });
+  const [patientProfile, setPatientProfile] = useState<PatientProfile>(DEFAULT_INITIAL_PROFILE);
 
   const [recommendationResult, setRecommendationResult] = useState<RecommendationResultData | null>(null);
   const [comparisonModelIds, setComparisonModelIds] = useState<string[]>(['essenz-sound-er', 'stratos-ite', 'essenz-ric']);
@@ -57,6 +60,13 @@ export default function App() {
 
   const handleRetakeAssessment = () => {
     setRecommendationResult(null);
+    setActiveTab('advisor');
+  };
+
+  const handleStartAgain = () => {
+    setRecommendationResult(null);
+    setPatientProfile(DEFAULT_INITIAL_PROFILE);
+    setQuizSessionKey(prev => prev + 1);
     setActiveTab('advisor');
   };
 
@@ -83,6 +93,7 @@ export default function App() {
           }
         }}
         onPrintClick={() => setActiveTab('print')}
+        onStartAgain={handleStartAgain}
         hasRecommendation={Boolean(recommendationResult)}
       />
 
@@ -176,14 +187,17 @@ export default function App() {
                 result={recommendationResult}
                 profile={patientProfile}
                 onRetake={handleRetakeAssessment}
+                onStartAgain={handleStartAgain}
                 onCompare={handleOpenComparison}
                 onPrint={() => setActiveTab('print')}
               />
             ) : (
               <AdvisorQuiz
+                key={quizSessionKey}
                 lang={lang}
                 onComplete={handleAssessmentComplete}
                 initialProfile={patientProfile}
+                onReset={handleStartAgain}
               />
             )}
           </div>
@@ -222,6 +236,7 @@ export default function App() {
             }
             profile={patientProfile}
             onClose={() => setActiveTab('advisor')}
+            onStartAgain={handleStartAgain}
           />
         )}
 

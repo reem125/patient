@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { Language, PatientProfile, RecommendationResultData } from '../types/hearingAid.ts';
 import { LIFESTYLE_SITUATIONS } from '../data/hearingAidData.ts';
-import { calculateRecommendation } from '../utils/recommendationEngine.ts';
+import { calculateRecommendation, calculateEstimatedLevel } from '../utils/recommendationEngine.ts';
 import {
   Car,
   PartyPopper,
@@ -28,31 +28,34 @@ import {
   Smartphone,
   Coins,
   HeartPulse,
-  Info
+  Info,
+  RotateCcw
 } from 'lucide-react';
 
 interface AdvisorQuizProps {
   lang: Language;
   onComplete: (data: RecommendationResultData, profile: PatientProfile) => void;
   initialProfile?: PatientProfile;
+  onReset?: () => void;
 }
 
 export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
   lang,
   onComplete,
-  initialProfile
+  initialProfile,
+  onReset
 }) => {
   const isAr = lang === 'ar';
 
   const [step, setStep] = useState<number>(1);
   const [profile, setProfile] = useState<PatientProfile>(
     initialProfile || {
-      ageGroup: '35-54',
+      ageGroup: '',
       gender: '',
       headwear: [],
-      professionCategory: 'business-legal',
-      selectedSituations: ['home-conversations', 'phone-and-tv', 'business-meetings'],
-      priorities: ['rechargeable']
+      professionCategory: '',
+      selectedSituations: [],
+      priorities: []
     }
   );
 
@@ -70,11 +73,20 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
 
   const handleHeadwearToggle = (item: string) => {
     setProfile(prev => {
-      const exists = prev.headwear.includes(item);
-      return {
-        ...prev,
-        headwear: exists ? prev.headwear.filter(x => x !== item) : [...prev.headwear, item]
-      };
+      if (item === 'none') {
+        const isSelected = prev.headwear.includes('none');
+        return {
+          ...prev,
+          headwear: isSelected ? [] : ['none']
+        };
+      } else {
+        const withoutNone = prev.headwear.filter(x => x !== 'none');
+        const exists = withoutNone.includes(item);
+        return {
+          ...prev,
+          headwear: exists ? withoutNone.filter(x => x !== item) : [...withoutNone, item]
+        };
+      }
     });
   };
 
@@ -107,22 +119,17 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
     onComplete(recommendation, profile);
   };
 
-  // Preview performance level based on current selections
+  // Preview performance level using the unified calculateEstimatedLevel
   const currentSituationCount = profile.selectedSituations.length;
-  const hasCar = profile.selectedSituations.includes('car-conversations');
-  const hasParty = profile.selectedSituations.includes('large-parties');
-  let estimatedLevel = 5;
-  if (currentSituationCount >= 7 || hasCar || hasParty) {
-    estimatedLevel = 9;
-  } else if (currentSituationCount >= 5) {
-    estimatedLevel = 7;
-  } else if (currentSituationCount >= 3) {
-    estimatedLevel = 5;
-  } else if (currentSituationCount >= 1) {
-    estimatedLevel = 3;
-  } else {
-    estimatedLevel = 1;
-  }
+  const hasCarOrParty =
+    profile.selectedSituations.includes('car-conversations') ||
+    profile.selectedSituations.includes('large-parties');
+  const estimatedLevel = calculateEstimatedLevel(
+    currentSituationCount,
+    hasCarOrParty,
+    profile.professionCategory,
+    profile.ageGroup
+  );
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
@@ -159,6 +166,29 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
                 {step > num ? '✓' : num}
               </button>
             ))}
+
+            <button
+              onClick={() => {
+                if (onReset) {
+                  onReset();
+                } else {
+                  setStep(1);
+                  setProfile({
+                    ageGroup: '35-54',
+                    gender: '',
+                    headwear: [],
+                    professionCategory: '',
+                    selectedSituations: [],
+                    priorities: []
+                  });
+                }
+              }}
+              className="ms-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-[#007CA6] hover:bg-slate-100 transition-colors flex items-center gap-1.5 border border-slate-200 shadow-2xs"
+              title={isAr ? 'إعادة ضبط الاستبيان والبدء من جديد' : 'Reset quiz and start again'}
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-[#F38B21]" />
+              <span className="hidden sm:inline">{isAr ? 'البدء من جديد' : 'Start Again'}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -197,37 +227,6 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
               </div>
             </div>
 
-            {/* Gender selection */}
-            <div>
-              <label className="block text-sm font-bold text-slate-900 mb-2">
-                {isAr ? 'الجنس (لتخصيص اقتراحات أغطية الرأس والمظهر):' : 'Gender (for headwear & cosmetic matching):'}
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setProfile({ ...profile, gender: 'female' })}
-                  className={`p-3.5 rounded-xl border text-center transition-all ${
-                    profile.gender === 'female'
-                      ? 'border-[#007CA6] bg-[#E8F6FA]/80 font-bold text-[#007CA6] shadow-2xs'
-                      : 'border-slate-200 hover:border-slate-300 text-slate-700'
-                  }`}
-                >
-                  {isAr ? 'أنثى' : 'Female'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setProfile({ ...profile, gender: 'male' })}
-                  className={`p-3.5 rounded-xl border text-center transition-all ${
-                    profile.gender === 'male'
-                      ? 'border-[#007CA6] bg-[#E8F6FA]/80 font-bold text-[#007CA6] shadow-2xs'
-                      : 'border-slate-200 hover:border-slate-300 text-slate-700'
-                  }`}
-                >
-                  {isAr ? 'ذكر' : 'Male'}
-                </button>
-              </div>
-            </div>
-
             {/* Headwear & Accessories */}
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -243,22 +242,37 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
                   {
                     id: 'hijab',
                     label: isAr ? 'ارتداء الحجاب أو النقاب' : 'Wearing Hijab or Niqab',
-                    desc: isAr ? 'السماعات الداخلية ITE أو CIC تمنع صفير الاحتكاك ولا تسقط عند خلع الحجاب' : 'In-ear models prevent fabric friction, whistling & accidental drop'
+                    desc: isAr
+                      ? 'السماعات الداخلية ITE أو CIC تمنع صفير الاحتكاك ولا تسقط عند خلع الحجاب'
+                      : 'In-ear models prevent fabric friction, whistling & accidental drop'
                   },
                   {
                     id: 'ghutra',
                     label: isAr ? 'ارتداء الغترة أو الشماغ' : 'Wearing Ghutra or Shemagh',
-                    desc: isAr ? 'السماعات الداخلية تمنع أي لفت للانتباه وتستقر بهدوء داخل الأذن' : 'Custom discreet aids ensure zero visible protrusion'
+                    desc: isAr
+                      ? 'السماعات الداخلية تمنع أي لفت للانتباه وتستقر بهدوء داخل الأذن'
+                      : 'Custom discreet aids ensure zero visible protrusion'
                   },
                   {
                     id: 'glasses',
                     label: isAr ? 'ارتداء النظارات الطبية أو الشمسية يومياً' : 'Wearing Eyeglasses daily',
-                    desc: isAr ? 'سماعة ITE المصنوعة حسب مقاس أذنك تبقي خلف الأذن حراً بدون ضغط' : 'Leaves behind-ear area free of temple arm friction'
+                    desc: isAr
+                      ? 'سماعة ITE المصنوعة حسب مقاس أذنك تبقي خلف الأذن حراً بدون ضغط'
+                      : 'Leaves behind-ear area free of temple arm friction'
                   },
                   {
                     id: 'helmet',
                     label: isAr ? 'ارتداء خوذة عمل، دراجة، أو سماعات رأس' : 'Wearing Work Helmets or Headsets',
-                    desc: isAr ? 'المهندسون، العسكريون، وموظفو الطيران: لا احتكاك مع غطاء الرأس' : 'Aviation, site engineers & security: zero headgear whistle'
+                    desc: isAr
+                      ? 'المهندسون، العسكريون، وموظفو الطيران: لا احتكاك مع غطاء الرأس'
+                      : 'Aviation, site engineers & security: zero headgear whistle'
+                  },
+                  {
+                    id: 'none',
+                    label: isAr ? 'لا أرتدي شيئاً مما سبق' : 'None of the above',
+                    desc: isAr
+                      ? 'لا أستخدم غطاء رأس أو نظارات تؤثر على موضع السماعة'
+                      : 'No headwear or glasses affecting hearing aid position'
                   }
                 ].map(item => {
                   const selected = profile.headwear.includes(item.id);
@@ -268,6 +282,8 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
                       type="button"
                       onClick={() => handleHeadwearToggle(item.id)}
                       className={`p-3.5 rounded-xl border text-start transition-all flex items-start gap-3 ${
+                        item.id === 'none' ? 'sm:col-span-2' : ''
+                      } ${
                         selected
                           ? 'border-[#007CA6] bg-[#E8F6FA]/80 ring-1 ring-[#007CA6]/60 shadow-2xs'
                           : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
@@ -311,49 +327,61 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
                     id: 'sales-executive',
                     title: isAr ? 'المبيعات، الدعاية الطبية، الإدارة التنفيذية' : 'Sales, Medical Reps & C-Suite Executives',
                     desc: isAr ? 'محادثات مستمرة مع عملاء، مطاعم صاخبة، تنقل بين سيارات واجتماعات' : 'Continuous client talks, noisy lunches, car calls & meetings',
-                    suggestedLevel: isAr ? 'المستوى 9 المقترح' : 'Suggested: Level 9'
+                    suggestedLevel: isAr ? 'المستوى 7 أو 9' : 'Level 7 or 9'
+                  },
+                  {
+                    id: 'driver-traveler',
+                    title: isAr ? 'السائقون وكثيرو السفر' : 'Drivers & Frequent Travelers',
+                    desc: isAr ? 'محادثات داخل السيارة، مطارات، تنقل مستمر' : 'In-car conversations, airports, constant travel',
+                    suggestedLevel: isAr ? 'المستوى 7 أو 9' : 'Level 7 or 9'
+                  },
+                  {
+                    id: 'hospitality-events',
+                    title: isAr ? 'الضيافة والمطاعم والفعاليات' : 'Hospitality, Restaurants & Events',
+                    desc: isAr ? 'ضيوف ومجموعات وضوضاء مستمرة' : 'Guests, groups and constant noise',
+                    suggestedLevel: isAr ? 'المستوى 7 أو 9' : 'Level 7 or 9'
                   },
                   {
                     id: 'business-legal',
                     title: isAr ? 'رجال الأعمال، المحامون، الاستشارات، البنوك' : 'Business, Legal, Consulting & Banking',
                     desc: isAr ? 'اجتماعات عمل مكثفة، غداء عمل، مكالمات متعددة، تركيز على المتحدث' : 'High-stakes boardroom meetings, client dining, focus on speaker',
-                    suggestedLevel: isAr ? 'المستوى 7 المقترح' : 'Suggested: Level 7'
+                    suggestedLevel: isAr ? 'المستوى 7 أو 9' : 'Level 7 or 9'
                   },
                   {
                     id: 'education-teachers',
                     title: isAr ? 'المعلمون والأساتذة ومحاضرو الجامعات' : 'Educators, Professors & Teachers',
                     desc: isAr ? 'فصول دراسية صاخبة، أصوات طلاب من زوايا مختلفة، قاعات ومدرجات' : 'Noisy classrooms, multi-directional student voices, lecture halls',
-                    suggestedLevel: isAr ? 'المستوى 7 أو 9' : 'Suggested: Level 7 or 9'
+                    suggestedLevel: isAr ? 'المستوى 7 أو 9' : 'Level 7 or 9'
                   },
                   {
                     id: 'healthcare-clinics',
                     title: isAr ? 'الأطباء، الممرضون، الصيادلة، العيادات' : 'Healthcare: Doctors, Nurses & Pharmacists',
                     desc: isAr ? 'محادثات من خلف الكمامة، بيئة عيادات هادئة غالباً مع ضوضاء متقطعة' : 'Muffled speech behind masks, clinic outpatient rooms',
-                    suggestedLevel: isAr ? 'المستوى 5' : 'Suggested: Level 5'
+                    suggestedLevel: isAr ? 'المستوى 5' : 'Level 5'
                   },
                   {
                     id: 'office-civil',
                     title: isAr ? 'موظفو المكاتب والجهات الحكومية والمحاسبون' : 'Office Staff, Civil Service & Accountants',
                     desc: isAr ? 'بيئة مكتبية هادئة، محادثات مع زملاء بجوارك، تركيز على المهام' : 'Quiet desk environments, coworker check-ins, steady workflow',
-                    suggestedLevel: isAr ? 'المستوى 5' : 'Suggested: Level 5'
+                    suggestedLevel: isAr ? 'المستوى 5' : 'Level 5'
                   },
                   {
                     id: 'field-factory',
                     title: isAr ? 'عمال المواقع، المصانع، المهندسون، الفنيون' : 'Site Engineers, Industrial & Field Techs',
                     desc: isAr ? 'أتربة، عرق، رياح، حركة آلات وضوضاء تتطلب هيكل متين وخافض رياح' : 'Dust, sweat, heavy machinery, outdoor wind noise reduction',
-                    suggestedLevel: isAr ? 'المستوى 5 إلى 9 (طراز متين BTE)' : 'Level 5–9 (Rugged BTE)'
+                    suggestedLevel: isAr ? 'المستوى 5' : 'Level 5'
                   },
                   {
                     id: 'desk-remote',
                     title: isAr ? 'العمل المكتبي من المنزل، المبرمجون، الباحثون' : 'Remote Work-from-Home, Programmers & Researchers',
                     desc: isAr ? 'مواقف هادئة ومحدودة، مكالمات هاتف، شخص أو اثنان' : 'Calm focused environment, telephone calls, minimal noise',
-                    suggestedLevel: isAr ? 'المستوى 3' : 'Suggested: Level 3'
+                    suggestedLevel: isAr ? 'المستوى 3' : 'Level 3'
                   },
                   {
                     id: 'retired-homemaker',
                     title: isAr ? 'المتقاعدون، ربات البيوت' : 'Retirees & Homemakers',
                     desc: isAr ? 'محادثات عائلية في المنزل، تلفزيون، جلسات ودية هادئة' : 'Family conversations at home, TV, calm visits',
-                    suggestedLevel: isAr ? 'المستوى 1 أو 3 (أو 5 للنشطين)' : 'Level 1, 3 or 5'
+                    suggestedLevel: isAr ? 'المستوى 1 أو 3' : 'Level 1 or 3'
                   }
                 ].map(item => (
                   <button
@@ -389,9 +417,6 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
                   <h3 className="text-sm font-bold text-slate-900">
                     {isAr ? 'حدد المواقف السمعية التي تعيشها أسبوعياً:' : 'Select the listening scenarios you encounter weekly:'}
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {isAr ? 'وفقاً لاختبار نمط الحياة المعتمد في دليل هانزاتون (HANSATON)' : 'According to the official HANSATON Lifestyle Guide test'}
-                  </p>
                 </div>
 
                 <div className="inline-flex items-center gap-2 bg-[#F8FBFC] border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 shrink-0">
@@ -406,10 +431,9 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
               <div className="mb-4 p-3.5 bg-gradient-to-r from-[#E8F6FA] to-[#FEF6EE] border border-[#007CA6]/25 rounded-xl flex items-start gap-2.5 text-xs text-slate-800">
                 <Info className="w-4 h-4 text-[#007CA6] shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold text-[#007CA6]">{isAr ? 'معيار الحساب المعتمد: ' : 'Official Scoring Matrix: '}</span>
                   {isAr
-                    ? '(1-2 مواقف: مستوى 1 أو 3) · (3-4 مواقف: مستوى 5) · (5-6 مواقف: مستوى 7) · (7 مواقف فأكثر أو أي اختيار للقيادة/الحفلات: مستوى 9 الأول).'
-                    : '(1-2: Level 1 or 3) · (3-4: Level 5) · (5-6: Level 7) · (7+ or any Driving/Parties selection: Level 9 Flagship).'}
+                    ? 'طريقة تقدير مبدئية من رؤية الطبية: (0–1 موقف: المستوى 1) · (2 مواقف: المستوى 3) · (3–4: المستوى 5) · (5–6: المستوى 7) · (7 فأكثر أو القيادة/الحفلات: المستوى 9). المستوى النهائي يحدده أخصائي السمعيات.'
+                    : 'Vision Medical preliminary estimate: (0–1: Level 1) · (2: Level 3) · (3–4: Level 5) · (5–6: Level 7) · (7+ or driving/parties: Level 9). Final level is set by the audiologist.'}
                 </div>
               </div>
 
@@ -571,14 +595,26 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
           )}
 
           {step < 4 ? (
-            <button
-              type="button"
-              onClick={() => setStep(step + 1)}
-              className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-[#007CA6] to-[#0099D8] hover:from-[#00688C] hover:to-[#0085BD] rounded-xl shadow-sm shadow-[#007CA6]/25 transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <span>{isAr ? 'التالي' : 'Next Step'}</span>
-              {isAr ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
-            </button>
+            <div className="flex items-center gap-3">
+              {step === 1 && !profile.ageGroup && (
+                <span className="text-xs text-amber-700 font-semibold">
+                  {isAr ? 'اختر الفئة العمرية للمتابعة' : 'Select an age group to continue'}
+                </span>
+              )}
+              <button
+                type="button"
+                disabled={step === 1 && !profile.ageGroup}
+                onClick={() => setStep(step + 1)}
+                className={`px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center gap-2 ${
+                  step === 1 && !profile.ageGroup
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-70 shadow-none'
+                    : 'text-white bg-gradient-to-r from-[#007CA6] to-[#0099D8] hover:from-[#00688C] hover:to-[#0085BD] shadow-sm shadow-[#007CA6]/25 hover:scale-[1.02] active:scale-[0.98]'
+                }`}
+              >
+                <span>{isAr ? 'التالي' : 'Next Step'}</span>
+                {isAr ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+              </button>
+            </div>
           ) : (
             <button
               type="button"

@@ -21,15 +21,19 @@ import {
   Volume2,
   AlertCircle,
   HelpCircle,
-  Share2
+  Share2,
+  MessageCircle
 } from 'lucide-react';
 import { ShareModal } from './ShareModal.tsx';
+
+const CLINIC_WHATSAPP = "966XXXXXXXXX";
 
 interface RecommendationResultProps {
   lang: Language;
   result: RecommendationResultData;
   profile: PatientProfile;
   onRetake: () => void;
+  onStartAgain: () => void;
   onCompare: (modelId?: string) => void;
   onPrint: () => void;
 }
@@ -39,6 +43,7 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
   result,
   profile,
   onRetake,
+  onStartAgain,
   onCompare,
   onPrint
 }) => {
@@ -46,15 +51,31 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
   const [isShareOpen, setIsShareOpen] = useState<boolean>(false);
   const { primaryModel, alternativeModel, recommendedLevel, clinicalRationales, suggestedColors } = result;
 
+  const bookingMessage = isAr
+    ? `مرحباً، أرغب في حجز موعد فحص سمع. الاقتراح المبدئي من دليل هانزاتون: ${primaryModel.name.ar} — ${recommendedLevel.title.ar}.`
+    : `Hello, I would like to book a hearing test appointment. Preliminary suggestion from HANSATON guide: ${primaryModel.name.en} — ${recommendedLevel.title.en}.`;
+
+  const whatsappBookingUrl = `https://wa.me/${CLINIC_WHATSAPP}?text=${encodeURIComponent(bookingMessage)}`;
+
   return (
     <div className="space-y-8">
       {/* Hero Recommendation Card with Vision Medical Palette */}
       <div className="bg-gradient-to-b from-[#F0F9FC]/90 via-white to-white rounded-3xl border border-[#007CA6]/30 shadow-sm p-6 sm:p-8 lg:p-10 relative overflow-hidden">
         
-        {/* Subtle accent corner in Vision Medical Teal & Amber */}
-        <div className="absolute top-0 end-0 bg-gradient-to-r from-[#007CA6] to-[#F38B21] text-white px-5 py-2 rounded-es-2xl text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-xs">
-          <Sparkles className="w-3.5 h-3.5 text-white" />
-          <span>{isAr ? 'الخيار الأنسب لنمط حياتك' : 'Top Lifestyle Match'}</span>
+        {/* Top Header Actions & Accent */}
+        <div className="absolute top-0 end-0 flex items-center">
+          <button
+            onClick={onStartAgain}
+            className="px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-slate-600 hover:text-[#007CA6] bg-white/90 hover:bg-white rounded-es-xl border-b border-s border-slate-200 shadow-2xs transition-all flex items-center gap-1.5 me-1.5 sm:me-2"
+            title={isAr ? 'مسح النتائج والبدء من جديد' : 'Clear results and start again'}
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-[#F38B21]" />
+            <span>{isAr ? 'البدء من جديد' : 'Start Again'}</span>
+          </button>
+          <div className="bg-gradient-to-r from-[#007CA6] to-[#F38B21] text-white px-4 sm:px-5 py-2 rounded-es-2xl text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-xs">
+            <Sparkles className="w-3.5 h-3.5 text-white" />
+            <span>{isAr ? 'الخيار الأنسب لنمط حياتك' : 'Top Lifestyle Match'}</span>
+          </div>
         </div>
 
         <div className="flex flex-col lg:flex-row items-center lg:items-start gap-8">
@@ -165,10 +186,12 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
                 <div className="text-slate-300 text-[11px]">{isAr ? 'بيئات سمعية تلقائية' : 'Sound Environments'}</div>
               </div>
 
-              <div className="text-center px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15">
-                <div className="text-xl font-bold font-mono text-[#70C9E8]">{recommendedLevel.channels}</div>
-                <div className="text-slate-300 text-[11px]">{isAr ? 'قنوات ضبط دقيقة' : 'Tuning Channels'}</div>
-              </div>
+              {recommendedLevel.channels !== undefined && (
+                <div className="text-center px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15">
+                  <div className="text-xl font-bold font-mono text-[#70C9E8]">{recommendedLevel.channels}</div>
+                  <div className="text-slate-300 text-[11px]">{isAr ? 'قنوات ضبط دقيقة' : 'Tuning Channels'}</div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -252,9 +275,19 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
         {/* Actions Bar */}
         <div className="mt-8 pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
+            <a
+              href={whatsappBookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-[#25D366] to-[#1ebd5b] hover:brightness-105 transition-all flex items-center gap-2 shadow-sm shadow-[#25D366]/35 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <MessageCircle className="w-4 h-4 text-white" />
+              <span>{isAr ? 'احجز فحص السمع عبر واتساب' : 'Book a Hearing Test on WhatsApp'}</span>
+            </a>
+
             <button
               onClick={() => setIsShareOpen(true)}
-              className="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-[#25D366] via-[#20bd5a] to-[#007CA6] hover:brightness-105 transition-all flex items-center gap-2 shadow-sm shadow-[#25D366]/30 hover:scale-[1.02] active:scale-[0.98]"
+              className="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-[#007CA6] to-[#0099D8] hover:brightness-105 transition-all flex items-center gap-2 shadow-sm shadow-[#007CA6]/25 hover:scale-[1.02] active:scale-[0.98]"
             >
               <Share2 className="w-4 h-4 text-white" />
               <span>{isAr ? 'مشاركة النتيجة (واتساب / إيميل)' : 'Share Result (WhatsApp / Email)'}</span>
@@ -275,14 +308,23 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
               <SlidersHorizontal className="w-4 h-4 text-[#007CA6]" />
               <span>{isAr ? 'مقارنة مع باقي الموديلات' : 'Compare with Other Models'}</span>
             </button>
+
+            <button
+              onClick={onStartAgain}
+              className="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-amber-950 bg-[#FEF6EE] hover:bg-[#FEEAD4] border border-[#F38B21]/40 transition-all flex items-center gap-2 shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
+              title={isAr ? 'مسح النتائج والبدء من جديد من الخطوة الأولى' : 'Clear results and start again from step 1'}
+            >
+              <RotateCcw className="w-4 h-4 text-[#F38B21]" />
+              <span>{isAr ? 'البدء من جديد' : 'Start Again'}</span>
+            </button>
           </div>
 
           <button
             onClick={onRetake}
-            className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-[#007CA6] transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-[#007CA6] transition-colors flex items-center gap-1.5"
+            title={isAr ? 'العودة للاستبيان مع الاحتفاظ بإجاباتك السابقة لتعديلها' : 'Return to quiz keeping previous answers to edit them'}
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>{isAr ? 'إعادة الإجابة على الأسئلة' : 'Retake Assessment'}</span>
+            <span>{isAr ? 'تعديل الإجابات السابقة' : 'Edit Previous Answers'}</span>
           </button>
         </div>
       </div>

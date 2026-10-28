@@ -52,7 +52,7 @@ export interface PerformanceLevel {
   level: 1 | 3 | 5 | 7 | 9;
   title: BilingualText;
   environmentsCount: number;
-  channels: number;
+  channels?: number;
   description: BilingualText;
   bestForPersona: BilingualText;
   environmentsList: BilingualText[];

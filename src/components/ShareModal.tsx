@@ -36,7 +36,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 سماعتك المقترحة: *${primaryModel.name.ar}* (${primaryModel.family} · ${primaryModel.code})
 • الموضع: ${primaryModel.placement.ar}
 • مصدر الطاقة: ${primaryModel.powerSource.ar}
-• مستوى الأداء المقترح: *${recommendedLevel.title.ar}* (${recommendedLevel.environmentsCount} بيئات تلقائية · ${recommendedLevel.channels} قناة ضبط)
+• مستوى الأداء المقترح: *${recommendedLevel.title.ar}* (${recommendedLevel.environmentsCount} بيئات تلقائية${recommendedLevel.channels !== undefined ? ` · ${recommendedLevel.channels} قناة ضبط` : ''})
 
 *أبرز مسوغات التوصية الطبية:*
 ${clinicalRationales.slice(0, 2).map((r, i) => `${i + 1}. ${r.ar}`).join('\n')}
@@ -48,7 +48,7 @@ ${typeof window !== 'undefined' ? window.location.href : ''}`
 Recommended Device: *${primaryModel.name.en}* (${primaryModel.family} · ${primaryModel.code})
 • Placement: ${primaryModel.placement.en}
 • Power Source: ${primaryModel.powerSource.en}
-• Recommended Performance Tier: *${recommendedLevel.title.en}* (${recommendedLevel.environmentsCount} Environments · ${recommendedLevel.channels} Channels)
+• Recommended Performance Tier: *${recommendedLevel.title.en}* (${recommendedLevel.environmentsCount} Environments${recommendedLevel.channels !== undefined ? ` · ${recommendedLevel.channels} Channels` : ''})
 
 *Clinical Highlights:*
 ${clinicalRationales.slice(0, 2).map((r, i) => `${i + 1}. ${r.en}`).join('\n')}

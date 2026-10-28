@@ -620,6 +620,199 @@ export const PERFORMANCE_LEVELS: Record<number, PerformanceLevel> = {
   }
 };
 
+export const STRATOS_PERFORMANCE_LEVELS: Record<number, PerformanceLevel> = {
+  9: {
+    level: 9,
+    title: {
+      ar: 'المستوى 9 — الفئة الأولى',
+      en: 'Level 9 — First Class'
+    },
+    environmentsCount: 7,
+    description: {
+      ar: 'أعلى درجات الذكاء السمعي للسماعات المخصصة داخل الأذن مع 7 بيئات استماع تلقائية وشعاع الكلام الديناميكي.',
+      en: 'Premium acoustic intelligence for custom in-ear instruments with 7 auto environments and Dynamic SpeechBeam.'
+    },
+    bestForPersona: {
+      ar: 'للشخص الاجتماعي جداً الذي يقدر الجودة الممتازة ويقضي الوقت في العديد من مواقف الاستماع المختلفة مع وجود الكثير من الضوضاء في الخلفية',
+      en: 'For the very social person who values premium quality and spends time in many listening situations with a lot of background noise'
+    },
+    environmentsList: [
+      { ar: 'المحادثة في هدوء', en: 'Conversation in quiet' },
+      { ar: 'المحادثة في جمع', en: 'Conversation in a crowd' },
+      { ar: 'المحادثة في مجموعة صغيرة', en: 'Conversation in a small group' },
+      { ar: 'هدوء', en: 'Quiet' },
+      { ar: 'المحادثة في ضوضاء', en: 'Conversation in noise' },
+      { ar: 'الموسيقى', en: 'Music' },
+      { ar: 'الضوضاء', en: 'Noise' }
+    ],
+    highlightFeatures: [
+      {
+        name: 'Dynamic SpeechBeam',
+        description: {
+          ar: 'شعاع الكلام الديناميكي لتتبع أصوات المتحدثين بدقة في التجمعات',
+          en: 'Dynamic SpeechBeam to isolate and track speakers in active crowds'
+        }
+      },
+      {
+        name: 'Intelligent NoiseReduction',
+        description: {
+          ar: 'التخفيف الذكي للضوضاء المحيطة لراحة الأذن التامة',
+          en: 'Intelligent NoiseReduction for optimal background dampening'
+        }
+      },
+      {
+        name: 'Spatial Cues',
+        description: {
+          ar: 'تحديد الإشارات الصوتية والاتجاهات الطبيعية للصوت',
+          en: 'Spatial acoustic cues for 360-degree sound localization'
+        }
+      },
+      {
+        name: 'Wireless Connectivity',
+        description: {
+          ar: 'الاتصال اللاسلكي المباشر بالهواتف والأجهزة الذكية',
+          en: 'Direct wireless streaming and phone connectivity'
+        }
+      }
+    ],
+    professionExamples: [
+      { ar: 'كبار التنفيذيين، المسؤولون، المبيعات', en: 'Senior executives, officials, sales leaders' },
+      { ar: 'المحاضرون والخطباء ومقدمو المؤتمرات', en: 'Public speakers, lecturers, conference presenters' },
+      { ar: 'أصحاب السفر الدائم والاجتماعات الخارجية المتتالية', en: 'Frequent flyers, active global consultants' }
+    ]
+  },
+  7: {
+    level: 7,
+    title: {
+      ar: 'المستوى 7 — فئة رجال الأعمال',
+      en: 'Level 7 — Business Class'
+    },
+    environmentsCount: 6,
+    description: {
+      ar: 'أداء متقدم للأعمال واللقاءات الجماعية مع 6 بيئات استماع تلقائية وتخفيف ذكي للضوضاء.',
+      en: 'Advanced performance for professional group conversations with 6 automatic environments and intelligent noise reduction.'
+    },
+    bestForPersona: {
+      ar: 'للشخص الاجتماعي الذي يقدر الجودة ويقضي الوقت في العديد من مواقف الاستماع المختلفة مع وجود ضوضاء عادية في الخلفية',
+      en: 'For the social person who values quality and spends time in many listening situations with normal background noise'
+    },
+    environmentsList: [
+      { ar: 'المحادثة في هدوء', en: 'Conversation in quiet' },
+      { ar: 'المحادثة في جمع', en: 'Conversation in a crowd' },
+      { ar: 'المحادثة في مجموعة صغيرة', en: 'Conversation in a small group' },
+      { ar: 'هدوء', en: 'Quiet' },
+      { ar: 'المحادثة في ضوضاء', en: 'Conversation in noise' },
+      { ar: 'الموسيقى', en: 'Music' }
+    ],
+    highlightFeatures: [
+      {
+        name: 'Intelligent NoiseReduction',
+        description: {
+          ar: 'التخفيف الذكي للضوضاء للراحة أثناء العمل والمطاعم',
+          en: 'Intelligent NoiseReduction for comfort in restaurants and work'
+        }
+      },
+      {
+        name: 'Spatial Cues',
+        description: {
+          ar: 'تحديد الإشارات الصوتية ومواقع المتحدثين',
+          en: 'Spatial awareness and speaker localization'
+        }
+      },
+      {
+        name: 'Wireless Connectivity',
+        description: {
+          ar: 'الاتصال اللاسلكي السلس بالهواتف الذكية',
+          en: 'Seamless wireless smartphone connectivity'
+        }
+      }
+    ],
+    professionExamples: [
+      { ar: 'المحامون، المصرفيون، والمستشارون الماليون', en: 'Attorneys, bankers, and financial advisors' },
+      { ar: 'المعلمون والأساتذة ومسؤولو الموارد البشرية', en: 'Educators, professors, and HR professionals' },
+      { ar: 'الأطباء والمهندسون في جلسات النقاش المهنية', en: 'Physicians, healthcare directors, and engineers' }
+    ]
+  },
+  5: {
+    level: 5,
+    title: {
+      ar: 'المستوى 5 — الفئة العملية',
+      en: 'Level 5 — Practical Class'
+    },
+    environmentsCount: 4,
+    description: {
+      ar: 'توازن عملي رائع للمحادثات اليومية والبيئات الهادئة مع تحديد الإشارات الصوتية.',
+      en: 'Solid practical balance for everyday conversations and quiet environments with spatial acoustic cues.'
+    },
+    bestForPersona: {
+      ar: 'للشخص الذي يكون اجتماعياً في بعض الأحيان ويقضي وقتاً في القليل من مواقف الاستماع المختلفة مع ضوضاء متقطعة في الخلفية',
+      en: 'For the person who is social at times and spends time in a few listening situations with intermittent background noise'
+    },
+    environmentsList: [
+      { ar: 'المحادثة في هدوء', en: 'Conversation in quiet' },
+      { ar: 'المحادثة في جمع', en: 'Conversation in a crowd' },
+      { ar: 'المحادثة في مجموعة صغيرة', en: 'Conversation in a small group' },
+      { ar: 'هدوء', en: 'Quiet' }
+    ],
+    highlightFeatures: [
+      {
+        name: 'Spatial Cues',
+        description: {
+          ar: 'تحديد الإشارات الصوتية لتمييز اتجاه الصوت الطبيعي',
+          en: 'Spatial cues for natural ear sound perception'
+        }
+      },
+      {
+        name: 'Wireless Connectivity',
+        description: {
+          ar: 'الاتصال اللاسلكي للمكالمات والاستماع',
+          en: 'Wireless connectivity for calls and audio'
+        }
+      }
+    ],
+    professionExamples: [
+      { ar: 'الموظفون الإداريون وموظفو خدمة العملاء بالمكاتب', en: 'Administrative staff and desk officers' },
+      { ar: 'أصحاب المتاجر والمشرفون الميدانيون', en: 'Store owners and site supervisors' },
+      { ar: 'المتقاعدون النشطون اجتماعياً مع أسرهم', en: 'Active retirees with steady social circles' }
+    ]
+  },
+  3: {
+    level: 3,
+    title: {
+      ar: 'المستوى 3 — الفئة الاقتصادية',
+      en: 'Level 3 — Economy Class'
+    },
+    environmentsCount: 2,
+    description: {
+      ar: 'بيئتان استماع ذكيتان أساسيتان للمحادثات الهادئة والمجموعات الصغيرة مع الاتصال اللاسلكي.',
+      en: 'Two foundational listening profiles for quiet conversations and intimate small groups with wireless support.'
+    },
+    bestForPersona: {
+      ar: 'للشخص الهادئ الذي يقضي وقتاً في عدد قليل جداً من مواقف الاستماع المختلفة مع عدم وجود ضوضاء في الخلفية تقريباً',
+      en: 'For the calm person who spends time in very few listening situations with almost no background noise'
+    },
+    environmentsList: [
+      { ar: 'المحادثة في هدوء', en: 'Conversation in quiet' },
+      { ar: 'المحادثة في جمع', en: 'Conversation in a crowd' }
+    ],
+    highlightFeatures: [
+      {
+        name: 'Wireless Connectivity',
+        description: {
+          ar: 'الاتصال اللاسلكي مع الهواتف الذكية وتطبيق هانزاتون',
+          en: 'Wireless connectivity with smartphones and HANSATON app'
+        }
+      }
+    ],
+    professionExamples: [
+      { ar: 'العاملون عن بعد ومن المنزل والمبرمجون', en: 'Remote work-from-home professionals and programmers' },
+      { ar: 'الباحثون والكتّاب ومحبو القراءة الهادئة', en: 'Academic researchers, writers, and book enthusiasts' },
+      { ar: 'المتقاعدون الذين يقضون وقتهم في راحة المنزل', en: 'Retirees enjoying a serene home life' },
+      { ar: 'ربات البيوت في الجلسات العائلية الودية', en: 'Homemakers in intimate family settings' }
+    ]
+  }
+};
+
 export const HEARING_AID_COLORS: HearingAidColor[] = [
   {
     id: 'sterling-silver',

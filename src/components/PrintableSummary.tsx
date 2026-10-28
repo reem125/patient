@@ -9,21 +9,55 @@ import {
   RecommendationResultData,
   PatientProfile
 } from '../types/hearingAid.ts';
-import { Printer, ArrowLeft, ArrowRight, ShieldCheck, Stethoscope, Share2 } from 'lucide-react';
+import { Printer, ArrowLeft, ArrowRight, ShieldCheck, Stethoscope, Share2, RotateCcw } from 'lucide-react';
 import { ShareModal } from './ShareModal.tsx';
+import { LIFESTYLE_SITUATIONS } from '../data/hearingAidData.ts';
+
+const AGE_LABELS: Record<string, { ar: string; en: string }> = {
+  'under-18': { ar: 'أقل من 18 سنة', en: 'Under 18' },
+  '18-34': { ar: '18–34 سنة', en: '18–34 Years' },
+  '35-54': { ar: '35–54 سنة', en: '35–54 Years' },
+  '55-64': { ar: '55–64 سنة', en: '55–64 Years' },
+  '65-74': { ar: '65–74 سنة', en: '65–74 Years' },
+  '75-plus': { ar: '75 سنة فأكثر', en: '75+ Years' }
+};
+
+const HEADWEAR_LABELS: Record<string, { ar: string; en: string }> = {
+  hijab: { ar: 'الحجاب أو النقاب', en: 'Hijab or Niqab' },
+  niqab: { ar: 'الحجاب أو النقاب', en: 'Hijab or Niqab' },
+  ghutra: { ar: 'الغترة أو الشماغ', en: 'Ghutra or Shemagh' },
+  glasses: { ar: 'النظارات', en: 'Eyeglasses' },
+  helmet: { ar: 'الخوذة أو سماعات الرأس', en: 'Helmet or Headsets' },
+  none: { ar: 'لا أرتدي شيئاً مما سبق', en: 'None of the above' }
+};
+
+const PROFESSION_LABELS: Record<string, { ar: string; en: string }> = {
+  'sales-executive': { ar: 'المبيعات، الدعاية الطبية، الإدارة التنفيذية', en: 'Sales, Medical Reps & C-Suite Executives' },
+  'driver-traveler': { ar: 'السائقون وكثيرو السفر', en: 'Drivers & Frequent Travelers' },
+  'hospitality-events': { ar: 'الضيافة والمطاعم والفعاليات', en: 'Hospitality, Restaurants & Events' },
+  'business-legal': { ar: 'رجال الأعمال، المحامون، الاستشارات، البنوك', en: 'Business, Legal, Consulting & Banking' },
+  'education-teachers': { ar: 'المعلمون والأساتذة ومحاضرو الجامعات', en: 'Educators, Professors & Teachers' },
+  'healthcare-clinics': { ar: 'الأطباء، الممرضون، الصيادلة، العيادات', en: 'Healthcare: Doctors, Nurses & Pharmacists' },
+  'office-civil': { ar: 'موظفو المكاتب والجهات الحكومية والمحاسبون', en: 'Office Staff, Civil Service & Accountants' },
+  'field-factory': { ar: 'عمال المواقع، المصانع، المهندسون، الفنيون', en: 'Site Engineers, Industrial & Field Techs' },
+  'desk-remote': { ar: 'العمل المكتبي من المنزل، المبرمجون، الباحثون', en: 'Remote Work-from-Home, Programmers & Researchers' },
+  'retired-homemaker': { ar: 'المتقاعدون، ربات البيوت', en: 'Retirees & Homemakers' }
+};
 
 interface PrintableSummaryProps {
   lang: Language;
   result: RecommendationResultData;
   profile: PatientProfile;
   onClose: () => void;
+  onStartAgain?: () => void;
 }
 
 export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
   lang,
   result,
   profile,
-  onClose
+  onClose,
+  onStartAgain
 }) => {
   const isAr = lang === 'ar';
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -52,6 +86,17 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
         </button>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {onStartAgain && (
+            <button
+              onClick={onStartAgain}
+              className="px-4 py-2.5 text-xs sm:text-sm font-bold text-amber-950 bg-[#FEF6EE] hover:bg-[#FEEAD4] border border-[#F38B21]/40 rounded-xl transition-all flex items-center gap-2 shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
+              title={isAr ? 'مسح النتائج والبدء من جديد' : 'Clear results and start again'}
+            >
+              <RotateCcw className="w-4 h-4 text-[#F38B21]" />
+              <span>{isAr ? 'البدء من جديد' : 'Start Again'}</span>
+            </button>
+          )}
+
           <button
             onClick={() => setIsShareOpen(true)}
             className="px-4 py-2.5 text-xs sm:text-sm font-bold text-white bg-[#25D366] hover:bg-[#20bd5a] rounded-xl shadow-xs transition-all flex items-center gap-2"
@@ -109,27 +154,54 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
               <span className="w-2 h-2 rounded-full bg-[#F38B21]" />
               <span>{isAr ? 'ملخص بيانات ونمط حياة المريض:' : 'Patient Profile & Lifestyle Summary:'}</span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <div>
                 <span className="text-slate-500 block">{isAr ? 'الفئة العمرية:' : 'Age Group:'}</span>
-                <span className="font-bold text-slate-900">{profile.ageGroup}</span>
+                <span className="font-bold text-slate-900">
+                  {profile.ageGroup ? (AGE_LABELS[profile.ageGroup]?.[lang] || profile.ageGroup) : (isAr ? 'غير محدد' : 'Unspecified')}
+                </span>
               </div>
               <div>
-                <span className="text-slate-500 block">{isAr ? 'الجنس:' : 'Gender:'}</span>
-                <span className="font-bold text-slate-900">{profile.gender || (isAr ? 'غير محدد' : 'Unspecified')}</span>
+                <span className="text-slate-500 block">{isAr ? 'المهنة / النشاط:' : 'Profession / Activity:'}</span>
+                <span className="font-bold text-slate-900">
+                  {profile.professionCategory ? (PROFESSION_LABELS[profile.professionCategory]?.[lang] || profile.professionCategory) : (isAr ? 'غير محدد' : 'Unspecified')}
+                </span>
               </div>
               <div>
                 <span className="text-slate-500 block">{isAr ? 'أغطية الرأس/النظارات:' : 'Headwear / Glasses:'}</span>
                 <span className="font-bold text-slate-900">
-                  {profile.headwear.length > 0 ? profile.headwear.join(', ') : (isAr ? 'لا يوجد' : 'None')}
+                  {profile.headwear.length > 0
+                    ? profile.headwear.map(h => HEADWEAR_LABELS[h]?.[lang] || h).join(isAr ? '، ' : ', ')
+                    : (isAr ? 'لا يوجد' : 'None')}
                 </span>
               </div>
-              <div>
-                <span className="text-slate-500 block">{isAr ? 'المواقف الأسبوعية:' : 'Weekly Scenarios:'}</span>
+            </div>
+
+            {/* Situations list */}
+            <div className="mt-3 pt-3 border-t border-[#007CA6]/15 text-xs">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-slate-500 font-semibold">{isAr ? 'المواقف والبيئات الصوتية المختارة:' : 'Selected Acoustic Environments:'}</span>
                 <span className="font-bold text-[#007CA6] font-mono">
-                  {profile.selectedSituations.length} {isAr ? 'مواقف مسجلة' : 'scenarios'}
+                  {profile.selectedSituations.length} {isAr ? 'مواقف' : 'scenarios'}
                 </span>
               </div>
+              {profile.selectedSituations.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {profile.selectedSituations.map(id => {
+                    const sit = LIFESTYLE_SITUATIONS.find(s => s.id === id);
+                    return (
+                      <span
+                        key={id}
+                        className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-white text-slate-700 border border-slate-200 shadow-2xs"
+                      >
+                        {sit ? sit.label[lang] : id}
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <span className="text-slate-500 text-xs italic">{isAr ? 'لم يتم تحديد مواقف' : 'No scenarios selected'}</span>
+              )}
             </div>
           </div>
 
@@ -161,7 +233,7 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs border-y border-slate-100 py-3 mb-4">
+          <div className={`grid grid-cols-2 ${recommendedLevel.channels !== undefined ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-2 text-xs border-y border-slate-100 py-3 mb-4`}>
             <div>
               <span className="text-slate-500 block">{isAr ? 'الموضع:' : 'Placement:'}</span>
               <span className="font-bold text-slate-800">{primaryModel.placement[lang]}</span>
@@ -174,10 +246,12 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
               <span className="text-slate-500 block">{isAr ? 'البيئات التلقائية:' : 'Environments:'}</span>
               <span className="font-bold text-slate-800 font-mono">{recommendedLevel.environmentsCount} {isAr ? 'بيئات' : 'profiles'}</span>
             </div>
-            <div>
-              <span className="text-slate-500 block">{isAr ? 'قنوات الضبط:' : 'Channels:'}</span>
-              <span className="font-bold text-slate-800 font-mono">{recommendedLevel.channels} {isAr ? 'قناة' : 'channels'}</span>
-            </div>
+            {recommendedLevel.channels !== undefined && (
+              <div>
+                <span className="text-slate-500 block">{isAr ? 'قنوات الضبط:' : 'Channels:'}</span>
+                <span className="font-bold text-slate-800 font-mono">{recommendedLevel.channels} {isAr ? 'قناة' : 'channels'}</span>
+              </div>
+            )}
           </div>
 
           {/* Clinical Rationales */}

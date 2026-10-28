@@ -8,6 +8,7 @@ import { Language } from '../types/hearingAid.ts';
 import {
   HEARING_AID_MODELS,
   PERFORMANCE_LEVELS,
+  STRATOS_PERFORMANCE_LEVELS,
   HEARING_AID_COLORS,
   UNIVERSAL_ESSENZ_FEATURES
 } from '../data/hearingAidData.ts';
@@ -36,6 +37,7 @@ interface EducationalGuideProps {
 export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSelectForAdvisor }) => {
   const isAr = lang === 'ar';
   const [activeSection, setActiveSection] = useState<'basics' | 'models' | 'levels' | 'features' | 'colors'>('basics');
+  const [levelsFamily, setLevelsFamily] = useState<'Essenz' | 'STRATOS'>('Essenz');
   const [selectedLevelTab, setSelectedLevelTab] = useState<number>(9);
 
   return (
@@ -440,9 +442,44 @@ export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSele
               : 'Every higher performance level inherently includes all capabilities of the tiers below it, adding more automatic acoustic profiles and advanced directional algorithms.'}
           </div>
 
+          {/* Family Switcher: Essenz vs STRATOS */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-slate-700">{isAr ? 'عائلة السماعات:' : 'Hearing Aid Family:'}</span>
+            <div className="inline-flex rounded-xl p-1 bg-slate-100 border border-slate-200 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setLevelsFamily('Essenz');
+                  if (selectedLevelTab === 1) setSelectedLevelTab(9);
+                }}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  levelsFamily === 'Essenz'
+                    ? 'bg-white text-[#007CA6] shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Essenz
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLevelsFamily('STRATOS');
+                  if (selectedLevelTab === 1) setSelectedLevelTab(3);
+                }}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  levelsFamily === 'STRATOS'
+                    ? 'bg-white text-[#007CA6] shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                STRATOS
+              </button>
+            </div>
+          </div>
+
           {/* Level Switcher */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {[9, 7, 5, 3, 1].map(lvl => (
+            {(levelsFamily === 'Essenz' ? [9, 7, 5, 3, 1] : [9, 7, 5, 3]).map(lvl => (
               <button
                 key={lvl}
                 onClick={() => setSelectedLevelTab(lvl)}
@@ -463,14 +500,16 @@ export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSele
           </div>
 
           {/* Selected Level Card */}
-          {PERFORMANCE_LEVELS[selectedLevelTab] && (() => {
-            const levelData = PERFORMANCE_LEVELS[selectedLevelTab];
+          {(() => {
+            const currentLevels = levelsFamily === 'Essenz' ? PERFORMANCE_LEVELS : STRATOS_PERFORMANCE_LEVELS;
+            const levelData = currentLevels[selectedLevelTab] || currentLevels[9];
+            if (!levelData) return null;
             return (
               <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 space-y-6 shadow-2xs">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
                   <div>
                     <span className="text-xs font-bold text-[#007CA6] uppercase tracking-widest block mb-1">
-                      HearIntelligence 6.0 & ERA Chip
+                      {levelsFamily === 'Essenz' ? 'HearIntelligence 6.0 & ERA Chip' : 'HearIntelligence'}
                     </span>
                     <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900">
                       {levelData.title[lang]}
@@ -482,10 +521,12 @@ export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSele
                       <span className="font-mono font-extrabold text-[#007CA6] text-lg block">{levelData.environmentsCount}</span>
                       <span className="text-slate-600 font-medium">{isAr ? 'بيئات تلقائية' : 'Environments'}</span>
                     </div>
-                    <div className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
-                      <span className="font-mono font-extrabold text-slate-800 text-lg block">{levelData.channels}</span>
-                      <span className="text-slate-600 font-medium">{isAr ? 'قنوات ضبط' : 'Channels'}</span>
-                    </div>
+                    {levelData.channels !== undefined && (
+                      <div className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                        <span className="font-mono font-extrabold text-slate-800 text-lg block">{levelData.channels}</span>
+                        <span className="text-slate-600 font-medium">{isAr ? 'قنوات ضبط' : 'Channels'}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
