@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Language,
   RecommendationResultData,
@@ -20,8 +20,10 @@ import {
   Layers,
   Volume2,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Share2
 } from 'lucide-react';
+import { ShareModal } from './ShareModal.tsx';
 
 interface RecommendationResultProps {
   lang: Language;
@@ -41,6 +43,7 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
   onPrint
 }) => {
   const isAr = lang === 'ar';
+  const [isShareOpen, setIsShareOpen] = useState<boolean>(false);
   const { primaryModel, alternativeModel, recommendedLevel, clinicalRationales, suggestedColors } = result;
 
   return (
@@ -250,11 +253,19 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
         <div className="mt-8 pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <button
+              onClick={() => setIsShareOpen(true)}
+              className="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-[#25D366] via-[#20bd5a] to-[#007CA6] hover:brightness-105 transition-all flex items-center gap-2 shadow-sm shadow-[#25D366]/30 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Share2 className="w-4 h-4 text-white" />
+              <span>{isAr ? 'مشاركة النتيجة (واتساب / إيميل)' : 'Share Result (WhatsApp / Email)'}</span>
+            </button>
+
+            <button
               onClick={onPrint}
               className="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-[#007CA6] to-[#0099D8] hover:from-[#00688C] hover:to-[#0085BD] transition-all flex items-center gap-2 shadow-sm shadow-[#007CA6]/25 hover:scale-[1.02] active:scale-[0.98]"
             >
               <Printer className="w-4 h-4 text-white" />
-              <span>{isAr ? 'طباعة تقرير المريض للاستشارة' : 'Print Patient Consultation Report'}</span>
+              <span>{isAr ? 'طباعة تقرير المريض' : 'Print Patient Sheet'}</span>
             </button>
 
             <button
@@ -339,6 +350,15 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Share Modal Dialog */}
+      <ShareModal
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        lang={lang}
+        result={result}
+        profile={profile}
+      />
     </div>
   );
 };

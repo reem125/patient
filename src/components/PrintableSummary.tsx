@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Language,
   RecommendationResultData,
   PatientProfile
 } from '../types/hearingAid.ts';
-import { Printer, ArrowLeft, ArrowRight, ShieldCheck, Stethoscope } from 'lucide-react';
+import { Printer, ArrowLeft, ArrowRight, ShieldCheck, Stethoscope, Share2 } from 'lucide-react';
+import { ShareModal } from './ShareModal.tsx';
 
 interface PrintableSummaryProps {
   lang: Language;
@@ -25,6 +26,7 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
   onClose
 }) => {
   const isAr = lang === 'ar';
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const { primaryModel, alternativeModel, recommendedLevel, clinicalRationales, suggestedColors } = result;
 
   const handlePrint = () => {
@@ -40,19 +42,24 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
   return (
     <div className="space-y-6">
       {/* On-screen control bar (hidden in print) */}
-      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex items-center justify-between no-print">
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
         <button
           onClick={onClose}
-          className="px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-2"
+          className="px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-2 self-start sm:self-auto"
         >
           {isAr ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
           <span>{isAr ? 'الرجوع للنتائج' : 'Back to Results'}</span>
         </button>
 
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500 hidden sm:inline">
-            {isAr ? 'يمكنك حفظ التقرير كملف PDF عبر أمر الطباعة' : 'Save as PDF via your browser print dialog'}
-          </span>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={() => setIsShareOpen(true)}
+            className="px-4 py-2.5 text-xs sm:text-sm font-bold text-white bg-[#25D366] hover:bg-[#20bd5a] rounded-xl shadow-xs transition-all flex items-center gap-2"
+          >
+            <Share2 className="w-4 h-4 text-white" />
+            <span>{isAr ? 'مشاركة (واتساب / إيميل)' : 'Share (WhatsApp / Email)'}</span>
+          </button>
+
           <button
             onClick={handlePrint}
             className="px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white bg-gradient-to-r from-[#007CA6] via-[#0092C7] to-[#F38B21] hover:brightness-105 rounded-xl shadow-sm shadow-[#007CA6]/30 transition-all flex items-center gap-2"
@@ -244,6 +251,15 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
 
       </div>
     </div>
+
+    {/* Share Modal Dialog */}
+    <ShareModal
+      isOpen={isShareOpen}
+      onClose={() => setIsShareOpen(false)}
+      lang={lang}
+      result={result}
+      profile={profile}
+    />
   </div>
   );
 };
