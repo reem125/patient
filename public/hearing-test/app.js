@@ -21,10 +21,13 @@ const CONFIG = {
   roomNoisyDbfs: -50,         // median level
   roomPeakDbfs: -45,          // a reading above this counts as a loud moment
   roomLoudShare: 0.03,
+  micSilentDbfs: -95,         // loudest reading below this = no signal from the microphone
   fastMs: 2000,               // a tone set this fast with no +/- presses counts as rushed
 };
 
 const EMBEDDED = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+// ?debug=1 shows the raw room-check numbers, for tuning the noise limits on a real microphone.
+const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
 
 // PAPER: right 2 kHz -> right 4 kHz -> left 1 kHz -> left 6 kHz.
 const SEQUENCE = [
@@ -103,6 +106,7 @@ const I18N = {
     micQuiet: 'Your room is quiet enough.',
     micNoisy: 'We heard noise during the measurement. Stay silent or move to a quieter place, then measure again.',
     micDenied: 'The microphone is not available. Answer the question below to continue.',
+    micSilent: 'We could not hear anything from your microphone. Check that your browser may use the microphone (on a Mac: System Settings › Privacy & Security › Microphone), then measure again, or answer the question below.',
     noiseQ: 'How loud is the background noise right now?',
     noiseVerySoft: 'Very soft', noiseSoft: 'Soft', noiseModerate: 'Moderate', noiseLoud: 'Loud',
     loudWarn: 'A loud room makes the result unreliable. Move to a quieter place before you continue.',
@@ -212,6 +216,7 @@ const I18N = {
     micQuiet: 'غرفتك هادئة بما يكفي.',
     micNoisy: 'سمعنا ضوضاء أثناء القياس. التزم الصمت أو انتقل إلى مكان أهدأ، ثم أعد القياس.',
     micDenied: 'الميكروفون غير متاح. أجب عن السؤال أدناه للمتابعة.',
+    micSilent: 'لم نسمع أي صوت من الميكروفون. تأكد من السماح للمتصفح باستخدام الميكروفون (على جهاز Mac: إعدادات النظام ← الخصوصية والأمان ← الميكروفون)، ثم أعد القياس أو أجب عن السؤال أدناه.',
     noiseQ: 'ما مستوى الضوضاء المحيطة بك الآن؟',
     noiseVerySoft: 'منخفضة جدًا', noiseSoft: 'منخفضة', noiseModerate: 'متوسطة', noiseLoud: 'مرتفعة',
     loudWarn: 'الغرفة الصاخبة تجعل النتيجة غير موثوقة. انتقل إلى مكان أهدأ قبل المتابعة.',
@@ -380,18 +385,24 @@ const Tone = {
 const RoomCheck = {
   stream: null, raf: 0, src: null,
 
+  // Call from a click handler: the audio context is started before awaiting the microphone,
+  // while the click still counts as a user gesture.
   async run(onLevel, onDone) {
+    const ctx = Tone.ensure();
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      await ctx.resume();
     } catch (e) {
       onDone(null);
       return;
     }
-    const ctx = Tone.ensure();
     this.src = ctx.createMediaStreamSource(this.stream);
     const an = ctx.createAnalyser();
     an.fftSize = 2048;
-    this.src.connect(an);
+    // Keep the analyser in the rendered graph (silently) so every browser keeps feeding it.
+    this.sink = ctx.createGain();
+    this.sink.gain.value = 0;
+    this.src.connect(an).connect(this.sink).connect(ctx.destination);
     const buf = new Float32Array(an.fftSize);
     const samples = [];
     const t0 = performance.now();
@@ -414,6 +425,7 @@ const RoomCheck = {
   stop() {
     cancelAnimationFrame(this.raf);
     if (this.src) { this.src.disconnect(); this.src = null; }
+    if (this.sink) { this.sink.disconnect(); this.sink = null; }
     if (this.stream) { this.stream.getTracks().forEach((tr) => tr.stop()); this.stream = null; }
   },
 };
@@ -423,8 +435,11 @@ function roomStats(samples) {
   const pick = (q) => s[Math.min(s.length - 1, Math.floor(q * s.length))];
   const median = pick(0.5);
   const loudShare = s.filter((v) => v > CONFIG.roomPeakDbfs).length / s.length;
+  const max = s[s.length - 1];
   return {
-    median, p90: pick(0.9), max: s[s.length - 1], loudShare,
+    median, p90: pick(0.9), max, loudShare,
+    // A working microphone always picks up some room sound; digital silence means no signal arrived.
+    silent: max < CONFIG.micSilentDbfs,
     noisy: median > CONFIG.roomNoisyDbfs || loudShare >= CONFIG.roomLoudShare,
   };
 }
@@ -599,10 +614,14 @@ function viewQuiet() {
   else if (mic.status === 'quiet') status = `<div class="status ok">${esc(t('micQuiet'))}</div>`;
   else if (mic.status === 'noisy') status = `<div class="status warn">${esc(t('micNoisy'))}</div>`;
   else if (mic.status === 'denied') status = `<div class="status info">${esc(t('micDenied'))}</div>`;
-  const ratingWarn = mic.status === 'denied' && env.selfRating === 'LOUD'
+  else if (mic.status === 'silent') status = `<div class="status warn">${esc(t('micSilent'))}</div>`;
+  if (DEBUG && env.micMedianDbfs != null) {
+    status += `<p class="small muted" dir="ltr">median ${env.micMedianDbfs} dBFS · p90 ${env.micP90Dbfs} · max ${env.micMaxDbfs} · loud ${Math.round(env.micLoudShare * 100)}% (limits: median &gt; ${CONFIG.roomNoisyDbfs}, loud &gt; ${CONFIG.roomPeakDbfs} for ≥ ${CONFIG.roomLoudShare * 100}%)</p>`;
+  }
+  const ratingWarn = (mic.status === 'denied' || mic.status === 'silent') && env.selfRating === 'LOUD'
     ? `<div class="status warn">${esc(t('loudWarn'))}</div>` : '';
 
-  const micDone = mic.status === 'quiet' || mic.status === 'noisy' || mic.status === 'denied';
+  const micDone = ['quiet', 'noisy', 'denied', 'silent'].includes(mic.status);
   const canGo = micDone && env.selfRating;
   const micButton = mic.status === 'denied' ? '' : mic.status === 'listening'
     ? `<button type="button" class="btn btn-secondary btn-block" disabled>${esc(t('micListening'))}</button>`
@@ -867,7 +886,7 @@ const actions = {
           env.micP90Dbfs = Math.round(stats.p90);
           env.micMaxDbfs = Math.round(stats.max);
           env.micLoudShare = Math.round(stats.loudShare * 100) / 100;
-          mic.status = stats.noisy ? 'noisy' : 'quiet';
+          mic.status = stats.silent ? 'silent' : stats.noisy ? 'noisy' : 'quiet';
           env.micStatus = mic.status.toUpperCase();
         }
         updateNoise();
