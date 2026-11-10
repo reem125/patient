@@ -38,7 +38,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 • مصدر الطاقة: ${primaryModel.powerSource.ar}
 • مستوى الأداء المقترح: *${recommendedLevel.title.ar}* (${recommendedLevel.environmentsCount} بيئات تلقائية${recommendedLevel.channels !== undefined ? ` · ${recommendedLevel.channels} قناة ضبط` : ''})
 
-*أبرز مسوغات التوصية الطبية:*
+*أبرز أسباب الاقتراح:*
 ${clinicalRationales.slice(0, 2).map((r, i) => `${i + 1}. ${r.ar}`).join('\n')}
 
 رؤية الطبية · الموزع المعتمد لسماعات HANSATON السويسرية

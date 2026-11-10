@@ -622,7 +622,7 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
               className="px-7 py-3 text-sm font-extrabold text-white bg-gradient-to-r from-[#007CA6] via-[#0092C7] to-[#F38B21] hover:brightness-105 rounded-xl shadow-md shadow-[#007CA6]/30 transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
             >
               <HeartPulse className="w-4 h-4 text-white" />
-              <span>{isAr ? 'عرض التوصية الطبية المخصصة' : 'Generate Personalized Recommendation'}</span>
+              <span>{isAr ? 'عرض الاقتراح المخصص' : 'Generate Personalized Recommendation'}</span>
             </button>
           )}
         </div>

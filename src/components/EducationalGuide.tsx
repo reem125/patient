@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Language } from '../types/hearingAid.ts';
 import {
   HEARING_AID_MODELS,
@@ -29,14 +29,19 @@ import {
   AlertTriangle
 } from 'lucide-react';
 
+export type GuideSection = 'basics' | 'models' | 'levels' | 'features' | 'colors';
+
 interface EducationalGuideProps {
   lang: Language;
   onSelectForAdvisor?: (modelId: string) => void;
+  // Section to open; the header's Types / Levels / Colors items each open their own.
+  initialSection?: GuideSection;
 }
 
-export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSelectForAdvisor }) => {
+export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSelectForAdvisor, initialSection = 'basics' }) => {
   const isAr = lang === 'ar';
-  const [activeSection, setActiveSection] = useState<'basics' | 'models' | 'levels' | 'features' | 'colors'>('basics');
+  const [activeSection, setActiveSection] = useState<GuideSection>(initialSection);
+  useEffect(() => setActiveSection(initialSection), [initialSection]);
   const [levelsFamily, setLevelsFamily] = useState<'Essenz' | 'STRATOS'>('Essenz');
   const [selectedLevelTab, setSelectedLevelTab] = useState<number>(9);
 

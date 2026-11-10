@@ -244,6 +244,20 @@ export function calculateRecommendation(profile: PatientProfile): Recommendation
     }
   }
 
+  // A head-covering or invisibility rule can outrank the "rechargeable" priority; say so instead of
+  // silently dropping the patient's choice, and point to the rechargeable option.
+  if (hasRechargeable && primaryModelId !== 'essenz-sound-er') {
+    rationales.push(alternativeModelId === 'essenz-sound-er'
+      ? {
+          ar: 'اخترت سماعة قابلة للشحن: الطراز المقترح أولاً يعمل ببطارية صغيرة لأنه الأنسب لما ذكرته عن غطاء الرأس أو الشكل. إذا كان الشحن أهم لك، فالبديل المقترح أدناه (sound E-R) قابل للشحن، ويمكنك مناقشة الخيارين مع الأخصائي.',
+          en: 'You chose rechargeable: the first suggestion uses a small battery because it suits your headwear or discretion needs best. If charging matters more to you, the alternative below (sound E-R) is rechargeable; discuss both with your audiologist.'
+        }
+      : {
+          ar: 'اخترت سماعة قابلة للشحن: الطراز المقترح يعمل ببطارية صغيرة لأنه الأنسب لإجاباتك الأخرى. اسأل الأخصائي عن سماعة sound E-R القابلة للشحن إذا كان الشحن أولوية لك.',
+          en: 'You chose rechargeable: the suggested model uses a small battery because it suits your other answers best. Ask your audiologist about the rechargeable sound E-R if charging is a priority for you.'
+        });
+  }
+
   // If the primary model is stratos-cic, also add CIC confirmation note:
   if (primaryModelId === 'stratos-cic') {
     rationales.push({

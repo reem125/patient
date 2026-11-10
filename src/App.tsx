@@ -131,6 +131,7 @@ export default function App() {
         onPrintClick={() => setActiveTab('print')}
         onStartAgain={handleStartAgain}
         hasRecommendation={Boolean(recommendationResult)}
+        showAdvisorActions={activeTab === 'advisor' || activeTab === 'print'}
       />
 
       {/* Main Content Area */}
@@ -273,7 +274,7 @@ export default function App() {
                           </li>
                           <li className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-[#F38B21] shrink-0" />
-                            <span>{isAr ? 'رسم بياني تقديري، تقرير شامل، وتوصيات طبية' : 'Estimated audiogram chart, details & next steps'}</span>
+                            <span>{isAr ? 'رسم بياني تقديري، تقرير مفصّل، ونصائح للخطوة التالية' : 'Estimated audiogram chart, details & next steps'}</span>
                           </li>
                         </ul>
                       </div>
@@ -338,7 +339,7 @@ export default function App() {
                           </li>
                           <li className="flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-[#007CA6] shrink-0" />
-                            <span>{isAr ? 'الخطوة 4: التفضيلات والتقنيات مع تقرير طبي وتوصية معتمدة' : 'Step 4: Priorities, instant report & WhatsApp booking'}</span>
+                            <span>{isAr ? 'الخطوة 4: التفضيلات والتقنيات مع اقتراح مبدئي فوري' : 'Step 4: Priorities, instant report & WhatsApp booking'}</span>
                           </li>
                         </ul>
                       </div>
@@ -460,12 +461,12 @@ export default function App() {
                 <div>
                   <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
                     {recommendationResult
-                      ? (isAr ? 'توصيتك الطبية المقترحة لسماعات هانزاتون' : 'Your HANSATON Hearing Aid Recommendation')
+                      ? (isAr ? 'اقتراحك المبدئي من سماعات هانزاتون' : 'Your initial HANSATON suggestion')
                       : (isAr ? 'دليل اختيار سماعتك الطبية (4 خطوات)' : 'Choose Your Hearing Aid: 4 Simple Steps')}
                   </h2>
                   <p className="text-xs text-slate-500">
                     {recommendationResult
-                      ? (isAr ? 'بناءً على إجاباتك، يوصي أخصائيو رؤية الطبية بالطراز ومستوى الأداء التاليين' : 'Based on your profile, Vision Medical recommends the following model & level')
+                      ? (isAr ? 'بناءً على إجاباتك، هذا هو الطراز ومستوى الأداء الأقرب لاحتياجاتك. يحدد أخصائي السمعيات الاختيار النهائي بعد فحص السمع.' : 'Based on your answers, this model and level fit your needs best. An audiologist confirms the final choice after a hearing test.')
                       : (isAr ? 'أجب عن الأسئلة أدناه لتحصل على توصية فورية ومطابقة لاحتياجاتك' : 'Complete the steps below for your instant personalized recommendation')}
                   </p>
                 </div>
@@ -507,12 +508,12 @@ export default function App() {
 
         {/* Tab 2: Educational Guide for Devices */}
         {activeTab === 'devices' && (
-          <EducationalGuide lang={lang} onSelectForAdvisor={handleOpenComparison} />
+          <EducationalGuide lang={lang} onSelectForAdvisor={handleOpenComparison} initialSection="models" />
         )}
 
         {/* Tab 3: Educational Guide for Performance Levels */}
         {activeTab === 'levels' && (
-          <EducationalGuide lang={lang} onSelectForAdvisor={handleOpenComparison} />
+          <EducationalGuide lang={lang} onSelectForAdvisor={handleOpenComparison} initialSection="levels" />
         )}
 
         {/* Tab 4: Side-by-side Comparison Matrix */}
@@ -526,7 +527,7 @@ export default function App() {
 
         {/* Tab 5: Color Matching Guide */}
         {activeTab === 'colors' && (
-          <EducationalGuide lang={lang} onSelectForAdvisor={handleOpenComparison} />
+          <EducationalGuide lang={lang} onSelectForAdvisor={handleOpenComparison} initialSection="colors" />
         )}
 
         {/* Tab 6: Online hearing test */}

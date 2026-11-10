@@ -110,7 +110,7 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
             className="px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white bg-gradient-to-r from-[#007CA6] via-[#0092C7] to-[#F38B21] hover:brightness-105 rounded-xl shadow-sm shadow-[#007CA6]/30 transition-all flex items-center gap-2"
           >
             <Printer className="w-4 h-4" />
-            <span>{isAr ? 'طباعة التقرير الطبي' : 'Print Medical Sheet'}</span>
+            <span>{isAr ? 'طباعة الملخص' : 'Print Summary'}</span>
           </button>
         </div>
       </div>
@@ -257,7 +257,7 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
           {/* Clinical Rationales */}
           <div className="space-y-2">
             <div className="text-xs font-bold text-slate-700">
-              {isAr ? 'مسوغات التوصية الطبية والارتباط بنمط الحياة:' : 'Clinical Rationale & Lifestyle Alignment:'}
+              {isAr ? 'أسباب الاقتراح وارتباطه بنمط حياتك:' : 'Why this suggestion fits your lifestyle:'}
             </div>
             {clinicalRationales.map((rat, i) => (
               <div key={i} className="text-xs text-slate-600 flex items-start gap-2">

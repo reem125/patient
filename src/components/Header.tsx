@@ -15,6 +15,8 @@ interface HeaderProps {
   onPrintClick?: () => void;
   onStartAgain?: () => void;
   hasRecommendation?: boolean;
+  // Start Again / Print belong to the advisor result; hide them elsewhere.
+  showAdvisorActions?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,7 +26,8 @@ export const Header: React.FC<HeaderProps> = ({
   onTabChange,
   onPrintClick,
   onStartAgain,
-  hasRecommendation = false
+  hasRecommendation = false,
+  showAdvisorActions = true
 }) => {
   const isAr = lang === 'ar';
 
@@ -34,7 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="h-1 w-full bg-gradient-to-r from-[#007CA6] via-[#0099D8] via-[#F38B21] to-[#007CA6]" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between gap-4 h-20">
+        <div className="flex items-center justify-between gap-3 h-16 sm:h-20">
           
           {/* Zone 1: Brand Wordmark & Official Logos (Click to return to Home Portal) */}
           <button
@@ -65,17 +68,17 @@ export const Header: React.FC<HeaderProps> = ({
                   referrerPolicy="no-referrer"
                 />
               </div>
-              <span className="hidden xl:inline text-[10px] font-bold text-[#007CA6] bg-[#E8F6FA] px-2 py-0.5 rounded-full border border-[#007CA6]/20">
+              <span className="hidden 2xl:inline text-[10px] font-bold text-[#007CA6] bg-[#E8F6FA] px-2 py-0.5 rounded-full border border-[#007CA6]/20">
                 {isAr ? 'شريك معتمد' : 'Authorized Partner'}
               </span>
             </div>
           </button>
 
           {/* Zone 2: Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1">
+          <nav className="hidden xl:flex items-center gap-0.5 min-w-0">
             <button
               onClick={() => onTabChange('home')}
-              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+              className={`px-2.5 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
                 activeTab === 'home'
                   ? 'bg-[#E8F6FA] text-[#007CA6] font-bold shadow-2xs'
                   : 'text-slate-600 hover:text-[#007CA6] hover:bg-[#F0F9FC]'
@@ -87,66 +90,66 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={() => onTabChange('advisor')}
-              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+              className={`px-2.5 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
                 activeTab === 'advisor'
                   ? 'bg-[#E8F6FA] text-[#007CA6] font-bold shadow-2xs'
                   : 'text-slate-600 hover:text-[#007CA6] hover:bg-[#F0F9FC]'
               }`}
             >
               <Sparkles className="w-4 h-4 text-[#F38B21]" />
-              <span>{isAr ? 'اختر سماعتك الطبية' : 'Choose Your Hearing Aid'}</span>
+              <span>{isAr ? 'اختر سماعتك' : 'Choose Your Aid'}</span>
             </button>
 
             <button
               onClick={() => onTabChange('devices')}
-              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+              className={`px-2.5 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
                 activeTab === 'devices'
                   ? 'bg-[#E8F6FA] text-[#007CA6] font-bold shadow-2xs'
                   : 'text-slate-600 hover:text-[#007CA6] hover:bg-[#F0F9FC]'
               }`}
             >
               <BookOpen className="w-4 h-4 text-[#007CA6]" />
-              <span>{isAr ? 'أنواع السماعات' : 'Hearing Aid Types'}</span>
+              <span>{isAr ? 'أنواع السماعات' : 'Types'}</span>
             </button>
 
             <button
               onClick={() => onTabChange('levels')}
-              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+              className={`px-2.5 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
                 activeTab === 'levels'
                   ? 'bg-[#E8F6FA] text-[#007CA6] font-bold shadow-2xs'
                   : 'text-slate-600 hover:text-[#007CA6] hover:bg-[#F0F9FC]'
               }`}
             >
               <SlidersHorizontal className="w-4 h-4 text-[#007CA6]" />
-              <span>{isAr ? 'مستويات الأداء (1-9)' : 'Performance Levels (1-9)'}</span>
+              <span>{isAr ? 'مستويات الأداء' : 'Levels 1-9'}</span>
             </button>
 
             <button
               onClick={() => onTabChange('compare')}
-              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+              className={`px-2.5 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
                 activeTab === 'compare'
                   ? 'bg-[#E8F6FA] text-[#007CA6] font-bold shadow-2xs'
                   : 'text-slate-600 hover:text-[#007CA6] hover:bg-[#F0F9FC]'
               }`}
             >
-              <span>{isAr ? 'مقارنة الموديلات' : 'Compare Models'}</span>
+              <span>{isAr ? 'المقارنة' : 'Compare'}</span>
             </button>
 
             <button
               onClick={() => onTabChange('colors')}
-              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+              className={`px-2.5 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
                 activeTab === 'colors'
                   ? 'bg-[#E8F6FA] text-[#007CA6] font-bold shadow-2xs'
                   : 'text-slate-600 hover:text-[#007CA6] hover:bg-[#F0F9FC]'
               }`}
             >
               <Palette className="w-4 h-4 text-[#F38B21]" />
-              <span>{isAr ? 'دليل الألوان' : 'Color Guide'}</span>
+              <span>{isAr ? 'الألوان' : 'Colors'}</span>
             </button>
 
             <button
               onClick={() => onTabChange('hearing')}
-              className={`px-3 py-2 text-sm font-bold rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 text-[#C2620A] border border-[#F38B21]/30 ${
+              className={`px-2.5 py-2 text-sm font-bold rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 text-[#C2620A] border border-[#F38B21]/30 ${
                 activeTab === 'hearing' ? 'bg-[#FEEAD4] shadow-2xs' : 'bg-[#FEF6EE] hover:bg-[#FEEAD4]'
               }`}
             >
@@ -157,7 +160,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Zone 3: Actions & Language Toggle */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {hasRecommendation && onStartAgain && (
+            {showAdvisorActions && hasRecommendation && onStartAgain && (
               <button
                 onClick={onStartAgain}
                 className="px-3 py-1.5 text-xs font-bold text-amber-950 bg-[#FEF6EE] hover:bg-[#FEEAD4] border border-[#F38B21]/40 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-2xs"
@@ -168,7 +171,7 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {hasRecommendation && onPrintClick && (
+            {showAdvisorActions && hasRecommendation && onPrintClick && (
               <button
                 onClick={onPrintClick}
                 className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
@@ -189,7 +192,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={() => onTabChange('advisor')}
-              className="px-4 py-2 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-[#007CA6] to-[#0099D8] hover:from-[#00688C] hover:to-[#0085BD] rounded-xl shadow-sm shadow-[#007CA6]/25 transition-all whitespace-nowrap shrink-0 hover:scale-[1.02] active:scale-[0.98]"
+              className="hidden 2xl:inline-flex px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-[#007CA6] to-[#0099D8] hover:from-[#00688C] hover:to-[#0085BD] rounded-xl shadow-sm shadow-[#007CA6]/25 transition-all whitespace-nowrap shrink-0 hover:scale-[1.02] active:scale-[0.98]"
             >
               {isAr ? 'اختر سماعتك المناسبة' : 'Choose Your Hearing Aid'}
             </button>
@@ -198,7 +201,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Mobile Sub-Navigation Bar */}
-        <div className="flex lg:hidden overflow-x-auto py-2.5 gap-2 border-t border-slate-100 scrollbar-none">
+        <div className="flex xl:hidden overflow-x-auto py-2.5 gap-2 border-t border-slate-100 scrollbar-none">
           <button
             onClick={() => onTabChange('home')}
             className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap flex items-center gap-1 ${

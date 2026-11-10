@@ -25,8 +25,7 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { ShareModal } from './ShareModal.tsx';
-
-const CLINIC_WHATSAPP = "966XXXXXXXXX";
+import { hasClinicWhatsapp, whatsappLink } from '../config/contact.ts';
 
 interface RecommendationResultProps {
   lang: Language;
@@ -55,7 +54,7 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
     ? `مرحباً، أرغب في حجز موعد فحص سمع. الاقتراح المبدئي من دليل هانزاتون: ${primaryModel.name.ar} — ${recommendedLevel.title.ar}.`
     : `Hello, I would like to book a hearing test appointment. Preliminary suggestion from HANSATON guide: ${primaryModel.name.en} — ${recommendedLevel.title.en}.`;
 
-  const whatsappBookingUrl = `https://wa.me/${CLINIC_WHATSAPP}?text=${encodeURIComponent(bookingMessage)}`;
+  const whatsappBookingUrl = whatsappLink(bookingMessage);
 
   return (
     <div className="space-y-8">
@@ -130,7 +129,7 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
           <div className="flex-1">
             <div className="text-xs font-bold text-[#007CA6] tracking-wider uppercase mb-2 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#F38B21]" />
-              <span>{isAr ? 'نتائج المستشار السمعي المعتمد' : 'Clinical Assessment Result'}</span>
+              <span>{isAr ? 'نتيجة دليل الاختيار' : 'Advisor result'}</span>
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight mb-2">
@@ -228,7 +227,7 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
         <div className="mt-8">
           <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-            <span>{isAr ? 'لماذا يناسبك هذا الخيار تحديداً؟ (التحليل الطبي)' : 'Why this fits your profile (Clinical Rationale):'}</span>
+            <span>{isAr ? 'لماذا يناسبك هذا الخيار؟' : 'Why this fits you:'}</span>
           </h3>
 
           <div className="space-y-3">
@@ -275,15 +274,17 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
         {/* Actions Bar */}
         <div className="mt-8 pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <a
-              href={whatsappBookingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-[#25D366] to-[#1ebd5b] hover:brightness-105 transition-all flex items-center gap-2 shadow-sm shadow-[#25D366]/35 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <MessageCircle className="w-4 h-4 text-white" />
-              <span>{isAr ? 'احجز فحص السمع عبر واتساب' : 'Book a Hearing Test on WhatsApp'}</span>
-            </a>
+            {hasClinicWhatsapp && (
+              <a
+                href={whatsappBookingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-[#25D366] to-[#1ebd5b] hover:brightness-105 transition-all flex items-center gap-2 shadow-sm shadow-[#25D366]/35 hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <MessageCircle className="w-4 h-4 text-white" />
+                <span>{isAr ? 'احجز فحص السمع عبر واتساب' : 'Book a Hearing Test on WhatsApp'}</span>
+              </a>
+            )}
 
             <button
               onClick={() => setIsShareOpen(true)}
