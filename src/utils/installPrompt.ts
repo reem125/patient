@@ -12,32 +12,52 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+const isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+// Whether the app is installed on this device. Chrome on Mac does not report it to the page,
+// so the site remembers it itself: the installed app and the browser tab share this site's storage.
+const INSTALLED_KEY = 'vm-app-installed';
+const remember = (value: boolean) => {
+  try {
+    if (value) localStorage.setItem(INSTALLED_KEY, '1');
+    else localStorage.removeItem(INSTALLED_KEY);
+  } catch { /* storage blocked: fall back to what the browser reports */ }
+};
+const remembered = () => {
+  try { return localStorage.getItem(INSTALLED_KEY) === '1'; } catch { return false; }
+};
+
 let deferred: BeforeInstallPromptEvent | null = null;
+let installed = remembered();
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((fn) => fn());
+
+// Opening the guide as the app proves it is installed.
+if (isStandalone()) { installed = true; remember(true); }
 
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferred = e as BeforeInstallPromptEvent;
+  // The browser only offers installation when the app is not installed (e.g. it was removed).
+  installed = false;
+  remember(false);
   notify();
 });
 window.addEventListener('appinstalled', () => {
   deferred = null;
   installed = true;
+  remember(true);
   notify();
 });
 
-// Chrome / Edge can tell the site whether its own app is already installed (declared through
-// related_applications in the manifest). Once installed, the browser stops offering installation.
-let installed = false;
+// Where supported (Android, Windows), the browser can also report the installed app directly
+// (declared through related_applications in the manifest).
 const nav = navigator as Navigator & { getInstalledRelatedApps?: () => Promise<unknown[]> };
 nav.getInstalledRelatedApps?.()
-  .then((apps) => { installed = apps.length > 0; notify(); })
-  .catch(() => { /* not supported: keep showing the install option */ });
-
-const isStandalone = () =>
-  window.matchMedia('(display-mode: standalone)').matches ||
-  (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  .then((apps) => { if (apps.length > 0) { installed = true; remember(true); notify(); } })
+  .catch(() => { /* not supported */ });
 
 /** iPhone / iPad (iPadOS reports itself as a Mac, so also check for a touch screen). */
 export const isIOS = () =>
@@ -60,8 +80,9 @@ export function useInstallPrompt() {
     if (!deferred) return;
     const event = deferred;
     await event.prompt();
-    await event.userChoice;
+    const { outcome } = await event.userChoice;
     deferred = null;
+    if (outcome === 'accepted') { installed = true; remember(true); }
     notify();
   };
 
