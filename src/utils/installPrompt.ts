@@ -30,7 +30,19 @@ const isStandalone = () =>
   window.matchMedia('(display-mode: standalone)').matches ||
   (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
-/** `canInstall` is true only when the browser offers installation and the app is not already open as an app. */
+/** Which manual install steps to show when the browser has not offered installation itself. */
+export const installBrowser = (): 'safari' | 'edge' | 'chrome' | 'other' => {
+  const ua = navigator.userAgent;
+  if (/Edg\//.test(ua)) return 'edge';
+  if (/Chrome\//.test(ua)) return 'chrome';
+  if (/Safari\//.test(ua)) return 'safari';
+  return 'other';
+};
+
+/**
+ * `canInstall`: the browser has offered installation, so `install()` opens its dialog.
+ * `isInstalledApp`: the guide is already running as the installed app (no install button then).
+ */
 export function useInstallPrompt() {
   const [, rerender] = useState(0);
   useEffect(() => {
@@ -48,5 +60,5 @@ export function useInstallPrompt() {
     notify();
   };
 
-  return { canInstall: deferred !== null && !isStandalone(), install };
+  return { canInstall: deferred !== null && !isStandalone(), isInstalledApp: isStandalone(), install };
 }

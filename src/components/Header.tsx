@@ -3,10 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Language } from '../types/hearingAid.ts';
-import { Globe, Printer, Sparkles, BookOpen, SlidersHorizontal, Palette, RotateCcw, Ear, Home, Download } from 'lucide-react';
-import { useInstallPrompt } from '../utils/installPrompt.ts';
+import { Globe, Printer, Sparkles, BookOpen, SlidersHorizontal, Palette, RotateCcw, Ear, Home, Download, X } from 'lucide-react';
+import { useInstallPrompt, installBrowser } from '../utils/installPrompt.ts';
+
+// Manual install steps, for browsers that have not offered installation themselves.
+const INSTALL_STEPS: Record<ReturnType<typeof installBrowser>, { ar: string[]; en: string[] }> = {
+  chrome: {
+    ar: ['افتح قائمة Chrome (⋮) أعلى اليمين', 'اختر «إرسال وحفظ ومشاركة» ثم «تثبيت الصفحة كتطبيق…»', 'أو اضغط أيقونة التثبيت في نهاية شريط العنوان'],
+    en: ['Open the Chrome menu (⋮) at the top right', 'Choose “Cast, save and share” → “Install page as app…”', 'Or click the install icon at the end of the address bar'],
+  },
+  edge: {
+    ar: ['افتح قائمة Edge (…) أعلى اليمين', 'اختر «التطبيقات» ثم «تثبيت هذا الموقع كتطبيق»'],
+    en: ['Open the Edge menu (…) at the top right', 'Choose “Apps” → “Install this site as an app”'],
+  },
+  safari: {
+    ar: ['من قائمة «ملف» أعلى الشاشة', 'اختر «إضافة إلى Dock»'],
+    en: ['Open the File menu at the top of the screen', 'Choose “Add to Dock”'],
+  },
+  other: {
+    ar: ['افتح الموقع في Google Chrome أو Microsoft Edge أو Safari', 'ثم اضغط «تثبيت التطبيق» مرة أخرى'],
+    en: ['Open the site in Google Chrome, Microsoft Edge or Safari', 'Then press “Install app” again'],
+  },
+};
 
 interface HeaderProps {
   lang: Language;
@@ -31,7 +51,21 @@ export const Header: React.FC<HeaderProps> = ({
   showAdvisorActions = true
 }) => {
   const isAr = lang === 'ar';
-  const { canInstall, install } = useInstallPrompt();
+  const { canInstall, isInstalledApp, install } = useInstallPrompt();
+  const [installHelpOpen, setInstallHelpOpen] = useState(false);
+  const installRef = useRef<HTMLDivElement>(null);
+
+  // Close the install steps when clicking anywhere else.
+  useEffect(() => {
+    if (!installHelpOpen) return;
+    const close = (e: MouseEvent) => {
+      if (installRef.current && !installRef.current.contains(e.target as Node)) setInstallHelpOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [installHelpOpen]);
+
+  const onInstallClick = () => (canInstall ? install() : setInstallHelpOpen((open) => !open));
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-2xs no-print">
@@ -184,15 +218,37 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {canInstall && (
-              <button
-                onClick={install}
-                className="px-3 py-1.5 text-xs font-semibold text-[#007CA6] border border-[#007CA6]/40 hover:bg-[#E8F6FA] bg-white rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
-                title={isAr ? 'ثبّت الدليل كتطبيق على جهازك' : 'Install the guide as an app on this device'}
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{isAr ? 'تثبيت التطبيق' : 'Install app'}</span>
-              </button>
+            {!isInstalledApp && (
+              <div ref={installRef} className="relative">
+                <button
+                  onClick={onInstallClick}
+                  aria-expanded={installHelpOpen}
+                  className="px-3 py-1.5 text-xs font-semibold text-[#007CA6] border border-[#007CA6]/40 hover:bg-[#E8F6FA] bg-white rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                  title={isAr ? 'ثبّت الدليل كتطبيق على جهازك' : 'Install the guide as an app on this device'}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{isAr ? 'تثبيت التطبيق' : 'Install app'}</span>
+                </button>
+
+                {installHelpOpen && (
+                  <div className="absolute top-full mt-2 end-0 w-72 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-lg p-4 z-50 text-start">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="font-bold text-sm text-slate-900">{isAr ? 'تثبيت الدليل كتطبيق' : 'Install the guide as an app'}</div>
+                      <button onClick={() => setInstallHelpOpen(false)} className="text-slate-500 hover:text-slate-700" aria-label={isAr ? 'إغلاق' : 'Close'}>
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <ol className="list-decimal ps-5 space-y-1.5 text-xs text-slate-600 leading-relaxed">
+                      {INSTALL_STEPS[installBrowser()][isAr ? 'ar' : 'en'].map((step) => (
+                        <li key={step}>{step}</li>
+                      ))}
+                    </ol>
+                    <p className="mt-3 text-[11px] text-slate-500">
+                      {isAr ? 'يفتح التطبيق في نافذة مستقلة ويتحدّث تلقائيًا عند كل تحديث للموقع.' : 'The app opens in its own window and updates itself whenever the site is updated.'}
+                    </p>
+                  </div>
+                )}
+              </div>
             )}
 
             <button
