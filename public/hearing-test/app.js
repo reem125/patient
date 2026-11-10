@@ -101,6 +101,7 @@ const I18N = {
     micDenied: 'The microphone is not available. Answer the question below to continue.',
     noiseQ: 'How loud is the background noise right now?',
     noiseVerySoft: 'Very soft', noiseSoft: 'Soft', noiseModerate: 'Moderate', noiseLoud: 'Loud',
+    loudWarn: 'A loud room makes the result unreliable. Move to a quieter place before you continue.',
 
     toneOf: 'Tone {n} of {total}',
     earRight: 'Right ear', earLeft: 'Left ear',
@@ -209,6 +210,7 @@ const I18N = {
     micDenied: 'الميكروفون غير متاح. أجب عن السؤال أدناه للمتابعة.',
     noiseQ: 'ما مستوى الضوضاء المحيطة بك الآن؟',
     noiseVerySoft: 'منخفضة جدًا', noiseSoft: 'منخفضة', noiseModerate: 'متوسطة', noiseLoud: 'مرتفعة',
+    loudWarn: 'الغرفة الصاخبة تجعل النتيجة غير موثوقة. انتقل إلى مكان أهدأ قبل المتابعة.',
 
     toneOf: 'النغمة {n} من {total}',
     earRight: 'الأذن اليمنى', earLeft: 'الأذن اليسرى',
@@ -583,6 +585,8 @@ function viewQuiet() {
   else if (mic.status === 'quiet') status = `<div class="status ok">${esc(t('micQuiet'))}</div>`;
   else if (mic.status === 'noisy') status = `<div class="status warn">${esc(t('micNoisy'))}</div>`;
   else if (mic.status === 'denied') status = `<div class="status info">${esc(t('micDenied'))}</div>`;
+  const ratingWarn = mic.status === 'denied' && env.selfRating === 'LOUD'
+    ? `<div class="status warn">${esc(t('loudWarn'))}</div>` : '';
 
   const micDone = mic.status === 'quiet' || mic.status === 'noisy' || mic.status === 'denied';
   const canGo = micDone && env.selfRating;
@@ -604,6 +608,7 @@ function viewQuiet() {
     <div class="mic-actions">${micButton}</div>
     <h2>${esc(t('noiseQ'))}</h2>
     <div class="options grid">${rating}</div>
+    ${ratingWarn}
     ${navRow(`<button type="button" class="btn btn-primary" data-action="next" ${canGo ? '' : 'disabled'}>${esc(t('continue'))}</button>`)}`;
 }
 
@@ -914,9 +919,12 @@ const actions = {
   },
 };
 
+// A completed microphone measurement decides; the self-rating only decides when the mic is unavailable.
 function updateNoise() {
   const env = state.environment;
-  env.noiseMasked = mic.status === 'noisy' || env.selfRating === 'LOUD';
+  const measured = mic.status === 'quiet' || mic.status === 'noisy';
+  env.noiseSource = measured ? 'MICROPHONE' : 'SELF_RATING';
+  env.noiseMasked = measured ? mic.status === 'noisy' : env.selfRating === 'LOUD';
 }
 
 function copyText(text, el) {
