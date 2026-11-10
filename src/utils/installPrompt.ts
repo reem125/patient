@@ -39,17 +39,9 @@ const isStandalone = () =>
   window.matchMedia('(display-mode: standalone)').matches ||
   (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
-/** Which manual install steps to show when the browser has not offered installation itself. */
-export const installBrowser = (): 'ios' | 'android' | 'safari' | 'edge' | 'chrome' | 'other' => {
-  const ua = navigator.userAgent;
-  // iPadOS reports itself as a Mac, so also check for a touch screen.
-  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'ios';
-  if (/Android/.test(ua)) return 'android';
-  if (/Edg\//.test(ua)) return 'edge';
-  if (/Chrome\//.test(ua)) return 'chrome';
-  if (/Safari\//.test(ua)) return 'safari';
-  return 'other';
-};
+/** iPhone / iPad (iPadOS reports itself as a Mac, so also check for a touch screen). */
+export const isIOS = () =>
+  /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 
 /**
  * `canInstall`: the browser has offered installation, so `install()` opens its dialog.
