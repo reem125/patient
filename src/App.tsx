@@ -11,6 +11,7 @@ import { RecommendationResult } from './components/RecommendationResult.tsx';
 import { EducationalGuide } from './components/EducationalGuide.tsx';
 import { ComparisonMatrix } from './components/ComparisonMatrix.tsx';
 import { PrintableSummary } from './components/PrintableSummary.tsx';
+import { HearingTest } from './components/HearingTest.tsx';
 import { calculateRecommendation } from './utils/recommendationEngine.ts';
 import {
   Sparkles,
@@ -24,6 +25,13 @@ import {
   ChevronLeft
 } from 'lucide-react';
 
+type Tab = 'advisor' | 'devices' | 'levels' | 'compare' | 'colors' | 'hearing' | 'print';
+
+// Direct link to the hearing test: /#hearing-test (optionally with ?lang=en).
+const HEARING_HASH = '#hearing-test';
+const initialTab = (): Tab => (window.location.hash === HEARING_HASH ? 'hearing' : 'advisor');
+const initialLang = (): Language => (new URLSearchParams(window.location.search).get('lang') === 'en' ? 'en' : 'ar');
+
 const DEFAULT_INITIAL_PROFILE: PatientProfile = {
   ageGroup: '',
   gender: '',
@@ -34,8 +42,8 @@ const DEFAULT_INITIAL_PROFILE: PatientProfile = {
 };
 
 export default function App() {
-  const [lang, setLang] = useState<Language>('ar');
-  const [activeTab, setActiveTab] = useState<'advisor' | 'devices' | 'levels' | 'compare' | 'colors' | 'print'>('advisor');
+  const [lang, setLang] = useState<Language>(initialLang);
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [quizSessionKey, setQuizSessionKey] = useState<number>(1);
   
   // Patient assessment state
@@ -50,7 +58,20 @@ export default function App() {
     document.documentElement.lang = lang;
   }, [lang]);
 
+  // Keep the address bar in step with the hearing test page, so it can be bookmarked or shared.
+  useEffect(() => {
+    const url = window.location.pathname + window.location.search + (activeTab === 'hearing' ? HEARING_HASH : '');
+    if (url !== window.location.pathname + window.location.search + window.location.hash) {
+      window.history.replaceState(null, '', url);
+    }
+  }, [activeTab]);
+
   const isAr = lang === 'ar';
+
+  const openHearingTest = () => {
+    setActiveTab('hearing');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleAssessmentComplete = (data: RecommendationResultData, profile: PatientProfile) => {
     setRecommendationResult(data);
@@ -131,15 +152,16 @@ export default function App() {
                     : 'Input your age, profession, headwear, and weekly acoustic environments to receive an audiological match for the optimal HANSATON form factor and performance tier (1 to 9).'}
                 </p>
 
-                {/* Online hearing screening (static page in public/hearing-test) */}
-                <a
-                  href={`/hearing-test/?lang=${lang}`}
+                {/* Online hearing screening (src/hearing-test) */}
+                <button
+                  type="button"
+                  onClick={openHearingTest}
                   className="mt-5 inline-flex items-center gap-2.5 px-5 py-3 rounded-xl bg-[#F38B21] hover:bg-[#E07A12] text-white text-sm sm:text-base font-bold shadow-md shadow-[#F38B21]/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <Ear className="w-5 h-5" />
                   <span>{isAr ? 'افحص سمعك مجانًا خلال 5 دقائق' : 'Take a free 5-minute hearing test'}</span>
                   {isAr ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                </a>
+                </button>
               </div>
 
               {/* Quick Feature Badges with Vision Medical glass styling */}
@@ -237,7 +259,12 @@ export default function App() {
           <EducationalGuide lang={lang} onSelectForAdvisor={handleOpenComparison} />
         )}
 
-        {/* Tab 6: Printable Patient Consultation Sheet */}
+        {/* Tab 6: Online hearing test */}
+        {activeTab === 'hearing' && (
+          <HearingTest lang={lang} onExit={() => setActiveTab('advisor')} />
+        )}
+
+        {/* Tab 7: Printable Patient Consultation Sheet */}
         {activeTab === 'print' && (
           <PrintableSummary
             lang={lang}

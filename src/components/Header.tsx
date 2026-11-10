@@ -10,8 +10,8 @@ import { Globe, Printer, Sparkles, BookOpen, SlidersHorizontal, Palette, RotateC
 interface HeaderProps {
   lang: Language;
   onLanguageChange: (lang: Language) => void;
-  activeTab: 'advisor' | 'devices' | 'levels' | 'compare' | 'colors';
-  onTabChange: (tab: 'advisor' | 'devices' | 'levels' | 'compare' | 'colors') => void;
+  activeTab: 'advisor' | 'devices' | 'levels' | 'compare' | 'colors' | 'hearing';
+  onTabChange: (tab: 'advisor' | 'devices' | 'levels' | 'compare' | 'colors' | 'hearing') => void;
   onPrintClick?: () => void;
   onStartAgain?: () => void;
   hasRecommendation?: boolean;
@@ -127,13 +127,15 @@ export const Header: React.FC<HeaderProps> = ({
               <span>{isAr ? 'دليل الألوان' : 'Color Guide'}</span>
             </button>
 
-            <a
-              href={`/hearing-test/?lang=${lang}`}
-              className="px-3 py-2 text-sm font-bold rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 text-[#C2620A] bg-[#FEF6EE] hover:bg-[#FEEAD4] border border-[#F38B21]/30"
+            <button
+              onClick={() => onTabChange('hearing')}
+              className={`px-3 py-2 text-sm font-bold rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 text-[#C2620A] border border-[#F38B21]/30 ${
+                activeTab === 'hearing' ? 'bg-[#FEEAD4] shadow-2xs' : 'bg-[#FEF6EE] hover:bg-[#FEEAD4]'
+              }`}
             >
               <Ear className="w-4 h-4 text-[#F38B21]" />
               <span>{isAr ? 'اختبار السمع' : 'Hearing Test'}</span>
-            </a>
+            </button>
           </nav>
 
           {/* Zone 3: Actions & Language Toggle */}
@@ -220,13 +222,15 @@ export const Header: React.FC<HeaderProps> = ({
           >
             {isAr ? 'الألوان' : 'Colors'}
           </button>
-          <a
-            href={`/hearing-test/?lang=${lang}`}
-            className="px-3 py-1.5 text-xs font-bold rounded-md whitespace-nowrap flex items-center gap-1 text-[#C2620A] bg-[#FEF6EE] border border-[#F38B21]/30"
+          <button
+            onClick={() => onTabChange('hearing')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-md whitespace-nowrap flex items-center gap-1 text-[#C2620A] border border-[#F38B21]/30 ${
+              activeTab === 'hearing' ? 'bg-[#FEEAD4]' : 'bg-[#FEF6EE]'
+            }`}
           >
             <Ear className="w-3.5 h-3.5 text-[#F38B21]" />
             {isAr ? 'اختبار السمع' : 'Hearing Test'}
-          </a>
+          </button>
         </div>
       </div>
     </header>

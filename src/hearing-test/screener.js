@@ -1,4 +1,4 @@
-'use strict';
+import HearingEngine from './engine.js';
 
 /* =====================================================================
  * Vision Medical online hearing screener — user interface.
@@ -6,7 +6,6 @@
  * HearingEngine.CONFIG for calibration, σ, regression and cut-offs.
  * ===================================================================== */
 const CONFIG = {
-  guideUrl: '/',              // "Learn about hearing aids" link
   paperUrl: 'https://doi.org/10.1177/23312165251317923',
 
   // Attenuation in dB below digital full scale. PAPER: start at −50 dB FS, 5 dB steps,
@@ -57,9 +56,6 @@ const OUT_FREQS = [500, 1000, 2000, 4000, 6000, 8000];
  * ===================================================================== */
 const I18N = {
   en: {
-    brand: 'Vision Medical · Hearing Check',
-    lang: 'العربية',
-    home: 'Hearing aid guide',
     footer: 'This is a hearing screening, not a medical diagnosis. For adults aged 18 and over.',
     back: 'Back', next: 'Next', continue: 'Continue',
 
@@ -166,9 +162,6 @@ const I18N = {
   },
 
   ar: {
-    brand: 'رؤية الطبية · فحص السمع',
-    lang: 'English',
-    home: 'دليل السماعات',
     footer: 'هذا فحص مبدئي للسمع وليس تشخيصًا طبيًا. مخصص للبالغين من عمر 18 عامًا فأكثر.',
     back: 'رجوع', next: 'التالي', continue: 'متابعة',
 
@@ -275,22 +268,10 @@ const I18N = {
   },
 };
 
+
 /* =====================================================================
  * HELPERS
  * ===================================================================== */
-const $ = (sel, root = document) => root.querySelector(sel);
-const app = $('#app');
-
-let lang = 'ar';
-const urlLang = new URLSearchParams(location.search).get('lang');
-if (urlLang === 'ar' || urlLang === 'en') lang = urlLang;
-else try { lang = localStorage.getItem('hc-lang') || 'ar'; } catch (e) { /* storage blocked */ }
-
-function t(key, vars) {
-  let s = I18N[lang][key] ?? I18N.en[key] ?? key;
-  if (vars) for (const k in vars) s = s.split('{' + k + '}').join(vars[k]);
-  return s;
-}
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'hc-' + Date.now().toString(36) + Math.random().toString(36).slice(2));
 const earKey = (ear) => (ear === 'right' ? 'RIGHT' : 'LEFT');
@@ -303,6 +284,7 @@ const ICONS = {
   play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>',
   pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>',
 };
+
 
 /* =====================================================================
  * TONE ENGINE — pulsed pure tone, Web Audio API
@@ -497,601 +479,624 @@ function roomStats(samples) {
   };
 }
 
-/* =====================================================================
- * STATE & FLOW
- * ===================================================================== */
-const SCREENS = ['welcome', 'age', 'self', 'q0', 'q1', 'q2', 'q3', 'setup', 'quiet',
-  ...SEQUENCE.map((_, i) => 'tone' + i), 'safety', 'results'];
 
-let state;
-let screenEnteredAt = 0;
-let tone = null;
-let channelTimer = 0;
-let mic = null;
-let detailsOpen = false;
+/**
+ * Mounts the hearing screener inside `root`, which must contain
+ * [data-hc="app"], [data-hc="progress"] and [data-hc="footer"].
+ * Returns { setLang(lang), destroy() }.
+ */
+export function mountHearingTest(root, opts = {}) {
+  const $ = (sel) => root.querySelector(sel);
+  const app = $('[data-hc="app"]');
+  let lang = opts.lang === 'en' ? 'en' : 'ar';
 
-function newState() {
-  return {
-    id: uid(),
-    startedAt: new Date().toISOString(),
-    endedAt: null,
-    language: lang,
-    completed: false,
-    index: 0,
-    consent: false,
-    answers: {},
-    answerTimesMs: {},
-    system: {
-      phones: 'WIRED_HEADPHONES',
-      userAgent: navigator.userAgent,
-      platform: navigator.platform || '',
-      mobile: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent),
-      volumeInstruction: 100,
+  function t(key, vars) {
+    let s = I18N[lang][key] ?? I18N.en[key] ?? key;
+    if (vars) for (const k in vars) s = s.split('{' + k + '}').join(vars[k]);
+    return s;
+  }
+
+  /* =====================================================================
+   * STATE & FLOW
+   * ===================================================================== */
+  const SCREENS = ['welcome', 'age', 'self', 'q0', 'q1', 'q2', 'q3', 'setup', 'quiet',
+    ...SEQUENCE.map((_, i) => 'tone' + i), 'safety', 'results'];
+
+  let state;
+  let screenEnteredAt = 0;
+  let tone = null;
+  let channelTimer = 0;
+  let mic = null;
+  let detailsOpen = false;
+
+  function newState() {
+    return {
+      id: uid(),
+      startedAt: new Date().toISOString(),
+      endedAt: null,
+      language: lang,
+      completed: false,
+      index: 0,
+      consent: false,
+      answers: {},
+      answerTimesMs: {},
+      system: {
+        phones: 'WIRED_HEADPHONES',
+        userAgent: navigator.userAgent,
+        platform: navigator.platform || '',
+        mobile: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent),
+        volumeInstruction: 100,
+      },
+      environment: { micDevice: null, micMedianDbfs: null, micP90Dbfs: null, micMaxDbfs: null, micStatus: null, selfRating: null, noiseMasked: false },
+      measurements: { RIGHT: {}, LEFT: {}, BOTH: {} },
+      screenTimesMs: {},
+      results: null,
+    };
+  }
+
+  function go(i) {
+    Tone.stop();
+    RoomCheck.cancel();
+    clearTimeout(channelTimer);
+    const prev = SCREENS[state.index];
+    state.screenTimesMs[prev] = (state.screenTimesMs[prev] || 0) + Math.round(performance.now() - screenEnteredAt);
+
+    state.index = Math.max(0, Math.min(SCREENS.length - 1, i));
+    const name = SCREENS[state.index];
+    if (name.startsWith('tone')) resetTone();
+    if (name === 'quiet' && !mic) mic = { status: EMBEDDED ? 'denied' : null };
+    detailsOpen = false;
+    screenEnteredAt = performance.now();
+    render();
+    window.scrollTo(0, 0);
+    app.focus({ preventScroll: true });
+  }
+
+  const toneIndex = () => Number(SCREENS[state.index].slice(4));
+
+  // PAPER: the first tone starts at −50 dB FS; each next tone starts 15 dB louder than the previous threshold.
+  function startLevel(i) {
+    const L = CONFIG.levels;
+    if (i === 0) return L.start;
+    const prev = SEQUENCE[i - 1];
+    const m = state.measurements[earKey(prev.ear)]['hz' + prev.freq];
+    const base = m ? m.dbFullScale : L.start;
+    return Math.max(L.min, Math.min(L.max, base - L.nextOffset));
+  }
+
+  function resetTone() {
+    tone = { att: startLevel(toneIndex()), presses: [], firstPlay: 0, played: false, playing: false, msg: '' };
+  }
+
+  /* =====================================================================
+   * RENDERING
+   * ===================================================================== */
+  function render() {
+    // Page language, direction and title belong to the host app.
+    root.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    $('[data-hc="footer"]').textContent = t('footer');
+    $('[data-hc="progress"]').style.width = (state.index / (SCREENS.length - 1)) * 100 + '%';
+
+    const name = SCREENS[state.index];
+    app.classList.toggle('wide', name === 'results');
+    if (name === 'welcome') app.innerHTML = viewWelcome();
+    else if (name === 'age') app.innerHTML = viewChoice({
+      eyebrow: 'aboutYou', q: 'ageQ', key: 'age', grid: true,
+      options: AGES.map(([v, label]) => ({ v, raw: label })),
+    });
+    else if (name === 'self') app.innerHTML = viewChoice({
+      eyebrow: 'aboutYou', q: 'selfQ', key: 'overallRating',
+      options: [{ v: 'GOOD', l: 'good' }, { v: 'NOT_SURE', l: 'notSure' }, { v: 'POOR', l: 'poor' }],
+    });
+    else if (/^q\d$/.test(name)) {
+      const n = Number(name[1]);
+      const [key, , q] = LISTENING[n];
+      app.innerHTML = viewChoice({
+        eyebrow: 'dailyLife', sub: t('questionOf', { n: n + 1 }), q, key,
+        options: FREQUENCY_ANSWERS.map(([v, l]) => ({ v, l })),
+      });
+    }
+    else if (name === 'setup') app.innerHTML = viewSetup();
+    else if (name === 'quiet') app.innerHTML = viewQuiet();
+    else if (name.startsWith('tone')) { app.innerHTML = viewTone(); updateToneUI(); }
+    else if (name === 'safety') app.innerHTML = viewSafety();
+    else if (name === 'results') app.innerHTML = viewResults();
+  }
+
+  function navRow(nextHtml = '') {
+    return `<div class="nav-row">
+      ${state.index > 0 ? `<button type="button" class="btn btn-text" data-action="back">${lang === 'ar' ? '→' : '←'} ${esc(t('back'))}</button>` : ''}
+      <span class="spacer"></span>${nextHtml}</div>`;
+  }
+
+  function viewWelcome() {
+    return `
+      <p class="eyebrow">${esc(t('welcomeEyebrow'))}</p>
+      <h1>${esc(t('welcomeTitle'))}</h1>
+      <p class="lead">${esc(t('welcomeBody'))}</p>
+      <ul class="need-list">
+        <li><span class="ico">${ICONS.headphones}</span>${esc(t('needHeadphones'))}</li>
+        <li><span class="ico">${ICONS.quiet}</span>${esc(t('needQuiet'))}</li>
+        <li><span class="ico">${ICONS.clock}</span>${esc(t('needTime'))}</li>
+      </ul>
+      <div class="notice">${esc(t('disclaimer'))}</div>
+      <label class="consent"><input type="checkbox" id="consent" ${state.consent ? 'checked' : ''}><span>${esc(t('consent'))}</span></label>
+      <button type="button" class="btn btn-primary btn-block" data-action="start" ${state.consent ? '' : 'disabled'}>${esc(t('start'))}</button>`;
+  }
+
+  function viewChoice(def) {
+    const cur = state.answers[def.key];
+    const opts = def.options.map((o) => `
+      <button type="button" class="option ${cur === o.v ? 'selected' : ''}" data-action="choose"
+        data-key="${def.key}" data-value="${o.v}">${esc(o.raw ?? t(o.l))}</button>`).join('');
+    return `
+      <p class="eyebrow">${esc(t(def.eyebrow))}${def.sub ? ' · ' + esc(def.sub) : ''}</p>
+      <h1>${esc(t(def.q))}</h1>
+      <div class="options ${def.grid ? 'grid' : ''}">${opts}</div>
+      ${navRow(cur ? `<button type="button" class="btn btn-primary" data-action="next">${esc(t('next'))}</button>` : '')}`;
+  }
+
+  function viewSetup() {
+    return `
+      <p class="eyebrow">${esc(t('setupEyebrow'))}</p>
+      <h1>${esc(t('setupTitle'))}</h1>
+      <ol class="steps">
+        <li><span>${t('setup1')}</span></li>
+        <li><span>${t('setup2')}</span></li>
+        <li><span>${t('setup3')}</span></li>
+        <li><span>${t('setup4')}</span></li>
+      </ol>
+      <div class="check-row">
+        <button type="button" class="ear-btn left" data-action="channel" data-value="left"><span class="dot"></span>${esc(t('playLeft'))}</button>
+        <button type="button" class="ear-btn right" data-action="channel" data-value="right"><span class="dot"></span>${esc(t('playRight'))}</button>
+      </div>
+      <p class="muted small">${esc(t('channelHint'))}</p>
+      ${navRow(`<button type="button" class="btn btn-primary" data-action="next">${esc(t('ready'))}</button>`)}`;
+  }
+
+  function viewQuiet() {
+    const env = state.environment;
+    let status = '';
+    if (mic.status === 'listening') status = `<div class="status info">${esc(t('micListening'))}</div>`;
+    else if (mic.status === 'quiet') status = `<div class="status ok">${esc(t('micQuiet'))}</div>`;
+    else if (mic.status === 'noisy') status = `<div class="status warn">${esc(t('micNoisy'))}</div>`;
+    else if (mic.status === 'denied') status = `<div class="status info">${esc(t('micDenied'))}</div>`;
+    const ratingWarn = mic.status === 'denied' && env.selfRating === 'LOUD'
+      ? `<div class="status warn">${esc(t('loudWarn'))}</div>` : '';
+
+    const micDone = ['quiet', 'noisy', 'denied'].includes(mic.status);
+    const canGo = micDone && env.selfRating;
+    const micButton = mic.status === 'denied' ? '' : mic.status === 'listening'
+      ? `<button type="button" class="btn btn-secondary btn-block" disabled>${esc(t('micListening'))}</button>`
+      : micDone
+        ? `<button type="button" class="btn btn-text" data-action="mic">↺ ${esc(t('micAgain'))}</button>`
+        : `<button type="button" class="btn btn-primary btn-block" data-action="mic">${esc(t('micStart'))}</button>`;
+
+    const rating = NOISE_RATINGS.map(([v, l]) => `
+      <button type="button" class="option ${env.selfRating === v ? 'selected' : ''}" data-action="noiseRating" data-value="${v}">${esc(t(l))}</button>`).join('');
+
+    return `
+      <p class="eyebrow">${esc(t('quietEyebrow'))}</p>
+      <h1>${esc(t('quietTitle'))}</h1>
+      ${mic.status === 'denied' ? '' : `<p class="lead">${esc(t('micBody', { s: CONFIG.micSeconds }))}</p>
+      <div class="mic-meter"><div id="micBar"></div></div>`}
+      ${status}
+      <div class="mic-actions">${micButton}</div>
+      <h2>${esc(t('noiseQ'))}</h2>
+      <div class="options grid">${rating}</div>
+      ${ratingWarn}
+      ${navRow(`<button type="button" class="btn btn-primary" data-action="next" ${canGo ? '' : 'disabled'}>${esc(t('continue'))}</button>`)}`;
+  }
+
+  function viewTone() {
+    const i = toneIndex();
+    const s = SEQUENCE[i];
+    const hint = i === 0 ? t('firstHint') : s.extra ? t('extraHint') : '';
+    const L = CONFIG.levels;
+    const segs = (L.max - L.min) / L.step + 1;
+    const bars = Array.from({ length: segs }, (_, k) => `<i style="height:${20 + (80 * k) / (segs - 1)}%"></i>`).join('');
+    const dots = SEQUENCE.map((_, k) => `<span class="${k < i ? 'done' : k === i ? 'now' : ''}"></span>`).join('');
+    return `
+      <div class="tone-head">
+        <span class="ear-badge ${s.ear}"><span class="dot"></span>${esc(t(s.ear === 'right' ? 'earRight' : 'earLeft'))} · ${s.freq} ${esc(t('hz'))}</span>
+        <span class="counter">${esc(t('toneOf', { n: i + 1, total: SEQUENCE.length }))}</span>
+      </div>
+      ${hint ? `<div class="hint">${esc(hint)}</div>` : ''}
+      <p class="instr">${t('instr')}</p>
+
+      <div class="player">
+        <div class="volume">
+          <button type="button" class="vol-btn" data-action="quieter" aria-label="${esc(t('quieter'))}"><div><div class="sym">−</div><span>${esc(t('quieter'))}</span></div></button>
+          <button type="button" class="play-btn" id="playBtn" data-action="play" aria-label="${esc(t('play'))}"></button>
+          <button type="button" class="vol-btn" data-action="louder" aria-label="${esc(t('louder'))}"><div><div class="sym">+</div><span>${esc(t('louder'))}</span></div></button>
+        </div>
+        <div class="play-label" id="playLabel"></div>
+        <div class="meter" id="meter" aria-hidden="true">${bars}</div>
+        <div class="vol-msg" id="volMsg" role="status"></div>
+        <div class="dots" aria-hidden="true">${dots}</div>
+      </div>
+
+      <div class="tone-actions">
+        <button type="button" class="btn btn-primary btn-block" id="nextBtn" data-action="toneNext">${esc(t('nextTone'))}</button>
+        <div class="row">
+          <button type="button" class="btn btn-text" data-action="retry">↺ ${esc(t('tryAgain'))}</button>
+          <button type="button" class="btn btn-text" data-action="notHeard">${esc(t('notHeard'))}</button>
+        </div>
+      </div>`;
+  }
+
+  function updateToneUI() {
+    const L = CONFIG.levels;
+    const filled = (L.max - tone.att) / L.step + 1;
+    [...$('#meter').children].forEach((el, k) => el.classList.toggle('on', k < filled));
+    const pb = $('#playBtn');
+    pb.innerHTML = tone.playing ? ICONS.pause : ICONS.play;
+    pb.classList.toggle('playing', tone.playing);
+    pb.setAttribute('aria-label', t(tone.playing ? 'stop' : 'play'));
+    $('#playLabel').textContent = t(tone.playing ? 'playing' : 'play');
+    $('#volMsg').textContent = tone.msg;
+    const nb = $('#nextBtn');
+    nb.disabled = !tone.played;
+    nb.title = tone.played ? '' : t('playFirst');
+  }
+
+  function viewSafety() {
+    return `
+      <div class="safety">
+        <span class="safety-ico">${ICONS.volume}</span>
+        <p class="eyebrow">${esc(t('safetyEyebrow'))}</p>
+        <h1>${esc(t('safetyTitle'))}</h1>
+        <p class="lead">${esc(t('safetyBody'))}</p>
+        <button type="button" class="btn btn-primary btn-block" data-action="showResults">${esc(t('showResults'))}</button>
+      </div>`;
+  }
+
+  /* =====================================================================
+   * RESULTS
+   * ===================================================================== */
+  function computeResults() {
+    const flat = Object.values(state.measurements.RIGHT).concat(Object.values(state.measurements.LEFT));
+    const rushed = flat.filter((m) => m.measurementStatus === 'COMPLETED' && m.durationInMilliseconds < CONFIG.fastMs && m.volumeOperationsSequence.length === 0).length;
+    const qualityFlags = rushed >= Math.ceil(flat.length / 2) ? ['TOO_FAST'] : [];
+    const a = state.answers;
+    return HearingEngine.run({
+      ageBand: a.age,
+      answers: { q2: a.overallRating, q4: a.loudEnoughButMumbled, q5: a.birdsChirping },
+      measurements: state.measurements,
+      noiseMasked: state.environment.noiseMasked,
+      qualityFlags,
+    });
+  }
+
+  function bandsLegend() {
+    const bands = [['GOOD', 0, 15], ['MILD', 15, 35], ['MODERATE', 35, 65], ['SEVERE', 65, 90]];
+    return bands;
+  }
+
+  function chartSVG(r) {
+    const W = 560, rowH = 34, top = 40, left = 78, right = 16, bottom = 30;
+    const pw = W - left - right;
+    const H = top + OUT_FREQS.length * rowH + bottom;
+    const x = (v) => left + (Math.max(0, Math.min(90, v)) / 90) * pw;
+    let g = '';
+    for (const [b, lo, hi] of bandsLegend()) {
+      g += `<rect x="${x(lo)}" y="${top - 26}" width="${x(hi) - x(lo)}" height="${OUT_FREQS.length * rowH + 26}" class="band band-${b}"/>`;
+      g += `<text x="${(x(lo) + x(hi)) / 2}" y="${top - 10}" text-anchor="middle" class="band-label band-label-${b}">${esc(t('band' + b))}</text>`;
+    }
+    for (let v = 0; v <= 90; v += 15) {
+      g += `<line x1="${x(v)}" x2="${x(v)}" y1="${top}" y2="${top + OUT_FREQS.length * rowH}" class="grid"/>`;
+      g += `<text x="${x(v)}" y="${top + OUT_FREQS.length * rowH + 18}" text-anchor="middle" class="axis">${v}</text>`;
+    }
+    OUT_FREQS.forEach((f, k) => {
+      const y0 = top + k * rowH;
+      g += `<text x="${left - 10}" y="${y0 + rowH / 2 + 4}" text-anchor="end" class="axis">${f >= 1000 ? f / 1000 + ' k' : f} ${esc(t('hz'))}</text>`;
+      // A 0 dB HL threshold still gets a short visible bar, and every bar is labelled with its value.
+      [['R', 6, 'bar-right'], ['L', 18, 'bar-left']].forEach(([ear, dy, cls]) => {
+        const v = r.audiogram[ear][f];
+        const w = Math.max(8, x(v) - x(0));
+        g += `<rect x="${x(0)}" y="${y0 + dy}" width="${w}" height="10" rx="3" class="${cls}"/>`;
+        g += `<text x="${x(0) + w + 5}" y="${y0 + dy + 9}" class="bar-value">${v}</text>`;
+      });
+    });
+    return `<svg viewBox="0 0 ${W} ${H}" direction="ltr" role="img" aria-label="${esc(t('detailTitle'))}">${g}</svg>`;
+  }
+
+  function viewDetails(r) {
+    const rows = OUT_FREQS.map((f) => `<tr><td>${f} ${esc(t('hz'))}</td><td>${r.audiogram.R[f]}</td><td>${r.audiogram.L[f]}</td></tr>`).join('');
+    return `
+      <div class="details-panel" id="detailsPanel">
+        <h2>${esc(t('detailTitle'))}</h2>
+        <div class="chart">${chartSVG(r)}
+          <div class="legend">
+            <span><i class="sw sw-right"></i>${esc(t('earRight'))}</span>
+            <span><i class="sw sw-left"></i>${esc(t('earLeft'))}</span>
+          </div>
+        </div>
+        <p class="small muted"><b>${esc(t('estimateOnly'))}</b> <a href="${esc(CONFIG.paperUrl)}" target="_blank" rel="noopener">${esc(t('method'))}</a></p>
+        <div class="table-wrap">
+          <table class="db-table">
+            <thead><tr><th>${esc(t('freqCol'))}</th><th>${esc(t('earRight'))} (${esc(t('dbhl'))})</th><th>${esc(t('earLeft'))} (${esc(t('dbhl'))})</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div class="row-actions">
+          ${EMBEDDED
+            ? `<button type="button" class="btn btn-secondary" data-action="copyResult">${esc(t('copyResult'))}</button>
+               <button type="button" class="btn btn-secondary" data-action="copyData">${esc(t('copyData'))}</button>`
+            : `<button type="button" class="btn btn-secondary" data-action="print">${esc(t('print'))}</button>
+               <button type="button" class="btn btn-secondary" data-action="download">${esc(t('download'))}</button>`}
+        </div>
+        <p class="muted small" id="copyMsg" hidden>${esc(t('copyManual'))}</p>
+        <textarea id="copyBox" class="copy-box" rows="6" readonly hidden></textarea>
+      </div>`;
+  }
+
+  function viewResults() {
+    const r = state.results;
+    const v = r.verdict;
+    const icon = { GOOD: '✓', FAIR: '!', POOR: '!', INCONCLUSIVE: '?' }[v];
+
+    const notes = [];
+    if (v === 'INCONCLUSIVE') notes.push(`<div class="note">${esc(t('reason' + r.reason))}</div>`);
+    if (r.asymmetry && r.asymmetry.flagged && v !== 'INCONCLUSIVE') notes.push(`<div class="note">${esc(t('asymNote'))}</div>`);
+    const difficulty = ['ALWAYS', 'OFTEN'].includes(state.answers.loudEnoughButMumbled) || ['ALWAYS', 'OFTEN'].includes(state.answers.birdsChirping) || state.answers.overallRating === 'POOR';
+    if (v === 'GOOD' && difficulty) notes.push(`<div class="note">${esc(t('mismatchNote'))}</div>`);
+    if (!r.calibrated && v !== 'INCONCLUSIVE') notes.push(`<div class="note info">${esc(t('uncalNote'))}</div>`);
+
+    const freqLabel = Object.fromEntries(FREQUENCY_ANSWERS.map(([val, key]) => [val, t(key)]));
+    const answers = LISTENING.map(([key, , , short]) =>
+      `<li><span>${esc(t(short))}</span><b>${esc(freqLabel[state.answers[key]] || '—')}</b></li>`).join('');
+
+    return `
+      <p class="eyebrow">${esc(t('resultsEyebrow'))}</p>
+      <div class="verdict ${v}">
+        <div class="icon">${icon}</div>
+        <div><h1>${esc(t(v + '_title'))}</h1><p>${esc(t(v + '_short'))}</p></div>
+      </div>
+      <div class="notes">${notes.join('')}</div>
+
+      <details class="more" open>
+        <summary>${esc(t('whatMeans'))}</summary>
+        <p>${esc(t(v + '_mean'))}</p>
+      </details>
+
+      <div class="cta">
+        ${v === 'INCONCLUSIVE'
+          ? `<button type="button" class="btn btn-primary btn-block" data-action="retake">${esc(t('retake'))}</button>`
+          : `<div class="row">
+               <button type="button" class="btn btn-primary" data-action="toggleDetails" aria-expanded="${detailsOpen}">${esc(t('detailed'))}</button>
+               <button type="button" class="btn btn-secondary" data-action="exit">${esc(t('learn'))}</button>
+             </div>
+             <button type="button" class="btn btn-text" data-action="retake">↺ ${esc(t('retake'))}</button>`}
+      </div>
+
+      ${v !== 'INCONCLUSIVE' && detailsOpen ? viewDetails(r) : ''}
+
+      <h2>${esc(t('answersTitle'))}</h2>
+      <ul class="answers">${answers}</ul>`;
+  }
+
+  function summaryText() {
+    const r = state.results;
+    const lines = [t(r.verdict + '_title'), t(r.verdict + '_short'), ''];
+    if (r.verdict !== 'INCONCLUSIVE') {
+      for (const ear of ['R', 'L']) {
+        lines.push(`${t(ear === 'R' ? 'earRight' : 'earLeft')} (${t('dbhl')}): ` + OUT_FREQS.map((f) => `${f} ${t('hz')} ${r.audiogram[ear][f]}`).join(', '));
+      }
+      lines.push('', t('estimateOnly'));
+    }
+    lines.push('', t('footer'));
+    return lines.join('\n');
+  }
+
+  /* =====================================================================
+   * EVENTS
+   * ===================================================================== */
+  const actions = {
+    start() { go(state.index + 1); },
+    next() { go(state.index + 1); },
+    back() { go(state.index - 1); },
+
+    choose(el) {
+      state.answers[el.dataset.key] = el.dataset.value;
+      state.answerTimesMs[el.dataset.key] = Math.round(performance.now() - screenEnteredAt);
+      el.parentElement.querySelectorAll('.option').forEach((b) => b.classList.toggle('selected', b === el));
+      setTimeout(() => go(state.index + 1), 220);
     },
-    environment: { micDevice: null, micMedianDbfs: null, micP90Dbfs: null, micMaxDbfs: null, micStatus: null, selfRating: null, noiseMasked: false },
-    measurements: { RIGHT: {}, LEFT: {}, BOTH: {} },
-    screenTimesMs: {},
-    results: null,
+
+    channel(el) {
+      const ear = el.dataset.value;
+      root.querySelectorAll('.ear-btn').forEach((b) => b.classList.toggle('active', b === el));
+      clearTimeout(channelTimer);
+      Tone.start(1000, ear, CONFIG.levels.start - 10);
+      channelTimer = setTimeout(() => { Tone.stop(); el.classList.remove('active'); }, 2300);
+    },
+
+    mic() {
+      mic.status = 'listening';
+      render();
+      RoomCheck.run(
+        (db) => {
+          const bar = $('#micBar');
+          if (bar) bar.style.width = Math.max(2, Math.min(100, (db + 90) * (100 / 70))) + '%';
+        },
+        (stats) => {
+          if (SCREENS[state.index] !== 'quiet') return;
+          const env = state.environment;
+          if (stats == null) { mic.status = 'denied'; env.micStatus = 'UNAVAILABLE'; }
+          else {
+            env.micMedianDbfs = Math.round(stats.median);
+            env.micP90Dbfs = Math.round(stats.p90);
+            env.micMaxDbfs = Math.round(stats.max);
+            env.micLoudShare = Math.round(stats.loudShare * 100) / 100;
+            env.micDevice = stats.device;
+            mic.status = stats.noisy ? 'noisy' : 'quiet';
+            env.micStatus = mic.status.toUpperCase();
+          }
+          updateNoise();
+          render();
+        },
+      );
+    },
+
+    noiseRating(el) {
+      state.environment.selfRating = el.dataset.value;
+      updateNoise();
+      render();
+    },
+
+    play() {
+      if (tone.playing) {
+        Tone.stop();
+        tone.playing = false;
+      } else {
+        const s = SEQUENCE[toneIndex()];
+        Tone.start(s.freq, s.ear, tone.att);
+        tone.playing = true;
+        tone.played = true;
+        if (!tone.firstPlay) tone.firstPlay = performance.now();
+      }
+      updateToneUI();
+    },
+
+    louder() { changeLevel(-CONFIG.levels.step); },
+    quieter() { changeLevel(CONFIG.levels.step); },
+
+    retry() {
+      Tone.stop();
+      resetTone();
+      updateToneUI();
+    },
+
+    toneNext() { if (tone.played) recordTone('COMPLETED'); },
+    notHeard() { recordTone('NOT_HEARD'); },
+
+    showResults() {
+      state.results = computeResults();
+      state.completed = true;
+      state.endedAt = new Date().toISOString();
+      go(state.index + 1);
+    },
+
+    toggleDetails() {
+      detailsOpen = !detailsOpen;
+      render();
+      if (detailsOpen) $('#detailsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+
+    print() { window.print(); },
+    copyResult(el) { copyText(summaryText(), el); },
+    copyData(el) { copyText(JSON.stringify(state, null, 2), el); },
+    download() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `hearing-check-${state.id}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    },
+    exit() { if (opts.onExit) opts.onExit(); },
+    retake() {
+      state = newState();
+      state.consent = true;
+      mic = null;
+      go(1);
+    },
   };
-}
 
-function go(i) {
-  Tone.stop();
-  RoomCheck.cancel();
-  clearTimeout(channelTimer);
-  const prev = SCREENS[state.index];
-  state.screenTimesMs[prev] = (state.screenTimesMs[prev] || 0) + Math.round(performance.now() - screenEnteredAt);
+  // A completed microphone measurement decides; the self-rating only decides when the mic is unavailable.
+  function updateNoise() {
+    const env = state.environment;
+    const measured = mic.status === 'quiet' || mic.status === 'noisy';
+    env.noiseSource = measured ? 'MICROPHONE' : 'SELF_RATING';
+    env.noiseMasked = measured ? mic.status === 'noisy' : env.selfRating === 'LOUD';
+  }
 
-  state.index = Math.max(0, Math.min(SCREENS.length - 1, i));
-  const name = SCREENS[state.index];
-  if (name.startsWith('tone')) resetTone();
-  if (name === 'quiet' && !mic) mic = { status: EMBEDDED ? 'denied' : null };
-  detailsOpen = false;
+  function copyText(text, el) {
+    const label = el.textContent;
+    const fallback = () => {
+      const box = $('#copyBox');
+      $('#copyMsg').hidden = false;
+      box.hidden = false;
+      box.value = text;
+      box.focus();
+      box.select();
+    };
+    try {
+      navigator.clipboard.writeText(text).then(() => {
+        el.textContent = '✓ ' + t('copied');
+        setTimeout(() => { el.textContent = label; }, 1800);
+      }, fallback);
+    } catch (e) {
+      fallback();
+    }
+  }
+
+  function changeLevel(delta) {
+    const L = CONFIG.levels;
+    const target = tone.att + delta;
+    if (target < L.min) { tone.msg = t('maxReached'); updateToneUI(); return; }
+    if (target > L.max) { tone.msg = t('minReached'); updateToneUI(); return; }
+    tone.att = target;
+    tone.msg = '';
+    if (!tone.playing) actions.play();
+    tone.presses.push({ op: delta < 0 ? 'UP' : 'DOWN', atMs: Math.round(performance.now() - tone.firstPlay), dbFullScale: target });
+    Tone.setLevel(tone.att);
+    updateToneUI();
+  }
+
+  // Stored like the live screener: dbFullScale is the attenuation in dB below full scale.
+  function recordTone(status) {
+    const s = SEQUENCE[toneIndex()];
+    const rec = {
+      dbFullScale: status === 'NOT_HEARD' ? CONFIG.levels.min : tone.att,
+      measurementStatus: status,
+      noiseMasked: state.environment.noiseMasked,
+      durationInMilliseconds: Math.round(performance.now() - screenEnteredAt),
+      volumeOperationsSequence: tone.presses,
+    };
+    state.measurements[earKey(s.ear)]['hz' + s.freq] = rec;
+    state.measurements.BOTH[(s.ear === 'right' ? 'R' : 'L') + s.freq] = rec;
+    go(state.index + 1);
+  }
+
+  app.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-action]');
+    if (!el || el.disabled) return;
+    const fn = actions[el.dataset.action];
+    if (fn) fn(el);
+  });
+
+  app.addEventListener('change', (e) => {
+    if (e.target.id === 'consent') {
+      state.consent = e.target.checked;
+      $('[data-action="start"]').disabled = !state.consent;
+    }
+  });
+
+  function onKey(e) {
+    if (!SCREENS[state.index].startsWith('tone') || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === '+' || e.key === '=' || e.key === 'ArrowUp') { e.preventDefault(); actions.louder(); }
+    else if (e.key === '-' || e.key === '_' || e.key === 'ArrowDown') { e.preventDefault(); actions.quieter(); }
+  }
+  document.addEventListener('keydown', onKey);
+
+  state = newState();
   screenEnteredAt = performance.now();
   render();
-  window.scrollTo(0, 0);
-  app.focus({ preventScroll: true });
-}
 
-const toneIndex = () => Number(SCREENS[state.index].slice(4));
-
-// PAPER: the first tone starts at −50 dB FS; each next tone starts 15 dB louder than the previous threshold.
-function startLevel(i) {
-  const L = CONFIG.levels;
-  if (i === 0) return L.start;
-  const prev = SEQUENCE[i - 1];
-  const m = state.measurements[earKey(prev.ear)]['hz' + prev.freq];
-  const base = m ? m.dbFullScale : L.start;
-  return Math.max(L.min, Math.min(L.max, base - L.nextOffset));
-}
-
-function resetTone() {
-  tone = { att: startLevel(toneIndex()), presses: [], firstPlay: 0, played: false, playing: false, msg: '' };
-}
-
-/* =====================================================================
- * RENDERING
- * ===================================================================== */
-function render() {
-  document.documentElement.lang = lang;
-  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-  document.title = t('brand');
-  $('#brandName').textContent = t('brand');
-  $('#langToggle').textContent = t('lang');
-  $('#footerText').textContent = t('footer');
-  const home = $('#homeLink');
-  if (home) { home.textContent = t('home'); home.href = CONFIG.guideUrl; }
-  $('#progressBar').style.width = (state.index / (SCREENS.length - 1)) * 100 + '%';
-
-  const name = SCREENS[state.index];
-  app.classList.toggle('wide', name === 'results');
-  if (name === 'welcome') app.innerHTML = viewWelcome();
-  else if (name === 'age') app.innerHTML = viewChoice({
-    eyebrow: 'aboutYou', q: 'ageQ', key: 'age', grid: true,
-    options: AGES.map(([v, label]) => ({ v, raw: label })),
-  });
-  else if (name === 'self') app.innerHTML = viewChoice({
-    eyebrow: 'aboutYou', q: 'selfQ', key: 'overallRating',
-    options: [{ v: 'GOOD', l: 'good' }, { v: 'NOT_SURE', l: 'notSure' }, { v: 'POOR', l: 'poor' }],
-  });
-  else if (/^q\d$/.test(name)) {
-    const n = Number(name[1]);
-    const [key, , q] = LISTENING[n];
-    app.innerHTML = viewChoice({
-      eyebrow: 'dailyLife', sub: t('questionOf', { n: n + 1 }), q, key,
-      options: FREQUENCY_ANSWERS.map(([v, l]) => ({ v, l })),
-    });
-  }
-  else if (name === 'setup') app.innerHTML = viewSetup();
-  else if (name === 'quiet') app.innerHTML = viewQuiet();
-  else if (name.startsWith('tone')) { app.innerHTML = viewTone(); updateToneUI(); }
-  else if (name === 'safety') app.innerHTML = viewSafety();
-  else if (name === 'results') app.innerHTML = viewResults();
-}
-
-function navRow(nextHtml = '') {
-  return `<div class="nav-row">
-    ${state.index > 0 ? `<button type="button" class="btn btn-text" data-action="back">${lang === 'ar' ? '→' : '←'} ${esc(t('back'))}</button>` : ''}
-    <span class="spacer"></span>${nextHtml}</div>`;
-}
-
-function viewWelcome() {
-  return `
-    <p class="eyebrow">${esc(t('welcomeEyebrow'))}</p>
-    <h1>${esc(t('welcomeTitle'))}</h1>
-    <p class="lead">${esc(t('welcomeBody'))}</p>
-    <ul class="need-list">
-      <li><span class="ico">${ICONS.headphones}</span>${esc(t('needHeadphones'))}</li>
-      <li><span class="ico">${ICONS.quiet}</span>${esc(t('needQuiet'))}</li>
-      <li><span class="ico">${ICONS.clock}</span>${esc(t('needTime'))}</li>
-    </ul>
-    <div class="notice">${esc(t('disclaimer'))}</div>
-    <label class="consent"><input type="checkbox" id="consent" ${state.consent ? 'checked' : ''}><span>${esc(t('consent'))}</span></label>
-    <button type="button" class="btn btn-primary btn-block" data-action="start" ${state.consent ? '' : 'disabled'}>${esc(t('start'))}</button>`;
-}
-
-function viewChoice(def) {
-  const cur = state.answers[def.key];
-  const opts = def.options.map((o) => `
-    <button type="button" class="option ${cur === o.v ? 'selected' : ''}" data-action="choose"
-      data-key="${def.key}" data-value="${o.v}">${esc(o.raw ?? t(o.l))}</button>`).join('');
-  return `
-    <p class="eyebrow">${esc(t(def.eyebrow))}${def.sub ? ' · ' + esc(def.sub) : ''}</p>
-    <h1>${esc(t(def.q))}</h1>
-    <div class="options ${def.grid ? 'grid' : ''}">${opts}</div>
-    ${navRow(cur ? `<button type="button" class="btn btn-primary" data-action="next">${esc(t('next'))}</button>` : '')}`;
-}
-
-function viewSetup() {
-  return `
-    <p class="eyebrow">${esc(t('setupEyebrow'))}</p>
-    <h1>${esc(t('setupTitle'))}</h1>
-    <ol class="steps">
-      <li><span>${t('setup1')}</span></li>
-      <li><span>${t('setup2')}</span></li>
-      <li><span>${t('setup3')}</span></li>
-      <li><span>${t('setup4')}</span></li>
-    </ol>
-    <div class="check-row">
-      <button type="button" class="ear-btn left" data-action="channel" data-value="left"><span class="dot"></span>${esc(t('playLeft'))}</button>
-      <button type="button" class="ear-btn right" data-action="channel" data-value="right"><span class="dot"></span>${esc(t('playRight'))}</button>
-    </div>
-    <p class="muted small">${esc(t('channelHint'))}</p>
-    ${navRow(`<button type="button" class="btn btn-primary" data-action="next">${esc(t('ready'))}</button>`)}`;
-}
-
-function viewQuiet() {
-  const env = state.environment;
-  let status = '';
-  if (mic.status === 'listening') status = `<div class="status info">${esc(t('micListening'))}</div>`;
-  else if (mic.status === 'quiet') status = `<div class="status ok">${esc(t('micQuiet'))}</div>`;
-  else if (mic.status === 'noisy') status = `<div class="status warn">${esc(t('micNoisy'))}</div>`;
-  else if (mic.status === 'denied') status = `<div class="status info">${esc(t('micDenied'))}</div>`;
-  const ratingWarn = mic.status === 'denied' && env.selfRating === 'LOUD'
-    ? `<div class="status warn">${esc(t('loudWarn'))}</div>` : '';
-
-  const micDone = ['quiet', 'noisy', 'denied'].includes(mic.status);
-  const canGo = micDone && env.selfRating;
-  const micButton = mic.status === 'denied' ? '' : mic.status === 'listening'
-    ? `<button type="button" class="btn btn-secondary btn-block" disabled>${esc(t('micListening'))}</button>`
-    : micDone
-      ? `<button type="button" class="btn btn-text" data-action="mic">↺ ${esc(t('micAgain'))}</button>`
-      : `<button type="button" class="btn btn-primary btn-block" data-action="mic">${esc(t('micStart'))}</button>`;
-
-  const rating = NOISE_RATINGS.map(([v, l]) => `
-    <button type="button" class="option ${env.selfRating === v ? 'selected' : ''}" data-action="noiseRating" data-value="${v}">${esc(t(l))}</button>`).join('');
-
-  return `
-    <p class="eyebrow">${esc(t('quietEyebrow'))}</p>
-    <h1>${esc(t('quietTitle'))}</h1>
-    ${mic.status === 'denied' ? '' : `<p class="lead">${esc(t('micBody', { s: CONFIG.micSeconds }))}</p>
-    <div class="mic-meter"><div id="micBar"></div></div>`}
-    ${status}
-    <div class="mic-actions">${micButton}</div>
-    <h2>${esc(t('noiseQ'))}</h2>
-    <div class="options grid">${rating}</div>
-    ${ratingWarn}
-    ${navRow(`<button type="button" class="btn btn-primary" data-action="next" ${canGo ? '' : 'disabled'}>${esc(t('continue'))}</button>`)}`;
-}
-
-function viewTone() {
-  const i = toneIndex();
-  const s = SEQUENCE[i];
-  const hint = i === 0 ? t('firstHint') : s.extra ? t('extraHint') : '';
-  const L = CONFIG.levels;
-  const segs = (L.max - L.min) / L.step + 1;
-  const bars = Array.from({ length: segs }, (_, k) => `<i style="height:${20 + (80 * k) / (segs - 1)}%"></i>`).join('');
-  const dots = SEQUENCE.map((_, k) => `<span class="${k < i ? 'done' : k === i ? 'now' : ''}"></span>`).join('');
-  return `
-    <div class="tone-head">
-      <span class="ear-badge ${s.ear}"><span class="dot"></span>${esc(t(s.ear === 'right' ? 'earRight' : 'earLeft'))} · ${s.freq} ${esc(t('hz'))}</span>
-      <span class="counter">${esc(t('toneOf', { n: i + 1, total: SEQUENCE.length }))}</span>
-    </div>
-    ${hint ? `<div class="hint">${esc(hint)}</div>` : ''}
-    <p class="instr">${t('instr')}</p>
-
-    <div class="player">
-      <div class="volume">
-        <button type="button" class="vol-btn" data-action="quieter" aria-label="${esc(t('quieter'))}"><div><div class="sym">−</div><span>${esc(t('quieter'))}</span></div></button>
-        <button type="button" class="play-btn" id="playBtn" data-action="play" aria-label="${esc(t('play'))}"></button>
-        <button type="button" class="vol-btn" data-action="louder" aria-label="${esc(t('louder'))}"><div><div class="sym">+</div><span>${esc(t('louder'))}</span></div></button>
-      </div>
-      <div class="play-label" id="playLabel"></div>
-      <div class="meter" id="meter" aria-hidden="true">${bars}</div>
-      <div class="vol-msg" id="volMsg" role="status"></div>
-      <div class="dots" aria-hidden="true">${dots}</div>
-    </div>
-
-    <div class="tone-actions">
-      <button type="button" class="btn btn-primary btn-block" id="nextBtn" data-action="toneNext">${esc(t('nextTone'))}</button>
-      <div class="row">
-        <button type="button" class="btn btn-text" data-action="retry">↺ ${esc(t('tryAgain'))}</button>
-        <button type="button" class="btn btn-text" data-action="notHeard">${esc(t('notHeard'))}</button>
-      </div>
-    </div>`;
-}
-
-function updateToneUI() {
-  const L = CONFIG.levels;
-  const filled = (L.max - tone.att) / L.step + 1;
-  [...$('#meter').children].forEach((el, k) => el.classList.toggle('on', k < filled));
-  const pb = $('#playBtn');
-  pb.innerHTML = tone.playing ? ICONS.pause : ICONS.play;
-  pb.classList.toggle('playing', tone.playing);
-  pb.setAttribute('aria-label', t(tone.playing ? 'stop' : 'play'));
-  $('#playLabel').textContent = t(tone.playing ? 'playing' : 'play');
-  $('#volMsg').textContent = tone.msg;
-  const nb = $('#nextBtn');
-  nb.disabled = !tone.played;
-  nb.title = tone.played ? '' : t('playFirst');
-}
-
-function viewSafety() {
-  return `
-    <div class="safety">
-      <span class="safety-ico">${ICONS.volume}</span>
-      <p class="eyebrow">${esc(t('safetyEyebrow'))}</p>
-      <h1>${esc(t('safetyTitle'))}</h1>
-      <p class="lead">${esc(t('safetyBody'))}</p>
-      <button type="button" class="btn btn-primary btn-block" data-action="showResults">${esc(t('showResults'))}</button>
-    </div>`;
-}
-
-/* =====================================================================
- * RESULTS
- * ===================================================================== */
-function computeResults() {
-  const flat = Object.values(state.measurements.RIGHT).concat(Object.values(state.measurements.LEFT));
-  const rushed = flat.filter((m) => m.measurementStatus === 'COMPLETED' && m.durationInMilliseconds < CONFIG.fastMs && m.volumeOperationsSequence.length === 0).length;
-  const qualityFlags = rushed >= Math.ceil(flat.length / 2) ? ['TOO_FAST'] : [];
-  const a = state.answers;
-  return HearingEngine.run({
-    ageBand: a.age,
-    answers: { q2: a.overallRating, q4: a.loudEnoughButMumbled, q5: a.birdsChirping },
-    measurements: state.measurements,
-    noiseMasked: state.environment.noiseMasked,
-    qualityFlags,
-  });
-}
-
-function bandsLegend() {
-  const bands = [['GOOD', 0, 15], ['MILD', 15, 35], ['MODERATE', 35, 65], ['SEVERE', 65, 90]];
-  return bands;
-}
-
-function chartSVG(r) {
-  const W = 560, rowH = 34, top = 40, left = 78, right = 16, bottom = 30;
-  const pw = W - left - right;
-  const H = top + OUT_FREQS.length * rowH + bottom;
-  const x = (v) => left + (Math.max(0, Math.min(90, v)) / 90) * pw;
-  let g = '';
-  for (const [b, lo, hi] of bandsLegend()) {
-    g += `<rect x="${x(lo)}" y="${top - 26}" width="${x(hi) - x(lo)}" height="${OUT_FREQS.length * rowH + 26}" class="band band-${b}"/>`;
-    g += `<text x="${(x(lo) + x(hi)) / 2}" y="${top - 10}" text-anchor="middle" class="band-label band-label-${b}">${esc(t('band' + b))}</text>`;
-  }
-  for (let v = 0; v <= 90; v += 15) {
-    g += `<line x1="${x(v)}" x2="${x(v)}" y1="${top}" y2="${top + OUT_FREQS.length * rowH}" class="grid"/>`;
-    g += `<text x="${x(v)}" y="${top + OUT_FREQS.length * rowH + 18}" text-anchor="middle" class="axis">${v}</text>`;
-  }
-  OUT_FREQS.forEach((f, k) => {
-    const y0 = top + k * rowH;
-    g += `<text x="${left - 10}" y="${y0 + rowH / 2 + 4}" text-anchor="end" class="axis">${f >= 1000 ? f / 1000 + ' k' : f} ${esc(t('hz'))}</text>`;
-    // A 0 dB HL threshold still gets a short visible bar, and every bar is labelled with its value.
-    [['R', 6, 'bar-right'], ['L', 18, 'bar-left']].forEach(([ear, dy, cls]) => {
-      const v = r.audiogram[ear][f];
-      const w = Math.max(8, x(v) - x(0));
-      g += `<rect x="${x(0)}" y="${y0 + dy}" width="${w}" height="10" rx="3" class="${cls}"/>`;
-      g += `<text x="${x(0) + w + 5}" y="${y0 + dy + 9}" class="bar-value">${v}</text>`;
-    });
-  });
-  return `<svg viewBox="0 0 ${W} ${H}" direction="ltr" role="img" aria-label="${esc(t('detailTitle'))}">${g}</svg>`;
-}
-
-function viewDetails(r) {
-  const rows = OUT_FREQS.map((f) => `<tr><td>${f} ${esc(t('hz'))}</td><td>${r.audiogram.R[f]}</td><td>${r.audiogram.L[f]}</td></tr>`).join('');
-  return `
-    <div class="details-panel" id="detailsPanel">
-      <h2>${esc(t('detailTitle'))}</h2>
-      <div class="chart">${chartSVG(r)}
-        <div class="legend">
-          <span><i class="sw sw-right"></i>${esc(t('earRight'))}</span>
-          <span><i class="sw sw-left"></i>${esc(t('earLeft'))}</span>
-        </div>
-      </div>
-      <p class="small muted"><b>${esc(t('estimateOnly'))}</b> <a href="${esc(CONFIG.paperUrl)}" target="_blank" rel="noopener">${esc(t('method'))}</a></p>
-      <div class="table-wrap">
-        <table class="db-table">
-          <thead><tr><th>${esc(t('freqCol'))}</th><th>${esc(t('earRight'))} (${esc(t('dbhl'))})</th><th>${esc(t('earLeft'))} (${esc(t('dbhl'))})</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-      <div class="row-actions">
-        ${EMBEDDED
-          ? `<button type="button" class="btn btn-secondary" data-action="copyResult">${esc(t('copyResult'))}</button>
-             <button type="button" class="btn btn-secondary" data-action="copyData">${esc(t('copyData'))}</button>`
-          : `<button type="button" class="btn btn-secondary" data-action="print">${esc(t('print'))}</button>
-             <button type="button" class="btn btn-secondary" data-action="download">${esc(t('download'))}</button>`}
-      </div>
-      <p class="muted small" id="copyMsg" hidden>${esc(t('copyManual'))}</p>
-      <textarea id="copyBox" class="copy-box" rows="6" readonly hidden></textarea>
-    </div>`;
-}
-
-function viewResults() {
-  const r = state.results;
-  const v = r.verdict;
-  const icon = { GOOD: '✓', FAIR: '!', POOR: '!', INCONCLUSIVE: '?' }[v];
-
-  const notes = [];
-  if (v === 'INCONCLUSIVE') notes.push(`<div class="note">${esc(t('reason' + r.reason))}</div>`);
-  if (r.asymmetry && r.asymmetry.flagged && v !== 'INCONCLUSIVE') notes.push(`<div class="note">${esc(t('asymNote'))}</div>`);
-  const difficulty = ['ALWAYS', 'OFTEN'].includes(state.answers.loudEnoughButMumbled) || ['ALWAYS', 'OFTEN'].includes(state.answers.birdsChirping) || state.answers.overallRating === 'POOR';
-  if (v === 'GOOD' && difficulty) notes.push(`<div class="note">${esc(t('mismatchNote'))}</div>`);
-  if (!r.calibrated && v !== 'INCONCLUSIVE') notes.push(`<div class="note info">${esc(t('uncalNote'))}</div>`);
-
-  const freqLabel = Object.fromEntries(FREQUENCY_ANSWERS.map(([val, key]) => [val, t(key)]));
-  const answers = LISTENING.map(([key, , , short]) =>
-    `<li><span>${esc(t(short))}</span><b>${esc(freqLabel[state.answers[key]] || '—')}</b></li>`).join('');
-
-  return `
-    <p class="eyebrow">${esc(t('resultsEyebrow'))}</p>
-    <div class="verdict ${v}">
-      <div class="icon">${icon}</div>
-      <div><h1>${esc(t(v + '_title'))}</h1><p>${esc(t(v + '_short'))}</p></div>
-    </div>
-    <div class="notes">${notes.join('')}</div>
-
-    <details class="more" open>
-      <summary>${esc(t('whatMeans'))}</summary>
-      <p>${esc(t(v + '_mean'))}</p>
-    </details>
-
-    <div class="cta">
-      ${v === 'INCONCLUSIVE'
-        ? `<button type="button" class="btn btn-primary btn-block" data-action="retake">${esc(t('retake'))}</button>`
-        : `<div class="row">
-             <button type="button" class="btn btn-primary" data-action="toggleDetails" aria-expanded="${detailsOpen}">${esc(t('detailed'))}</button>
-             <a class="btn btn-secondary" href="${esc(CONFIG.guideUrl)}">${esc(t('learn'))}</a>
-           </div>
-           <button type="button" class="btn btn-text" data-action="retake">↺ ${esc(t('retake'))}</button>`}
-    </div>
-
-    ${v !== 'INCONCLUSIVE' && detailsOpen ? viewDetails(r) : ''}
-
-    <h2>${esc(t('answersTitle'))}</h2>
-    <ul class="answers">${answers}</ul>`;
-}
-
-function summaryText() {
-  const r = state.results;
-  const lines = [t(r.verdict + '_title'), t(r.verdict + '_short'), ''];
-  if (r.verdict !== 'INCONCLUSIVE') {
-    for (const ear of ['R', 'L']) {
-      lines.push(`${t(ear === 'R' ? 'earRight' : 'earLeft')} (${t('dbhl')}): ` + OUT_FREQS.map((f) => `${f} ${t('hz')} ${r.audiogram[ear][f]}`).join(', '));
-    }
-    lines.push('', t('estimateOnly'));
-  }
-  lines.push('', t('footer'));
-  return lines.join('\n');
-}
-
-/* =====================================================================
- * EVENTS
- * ===================================================================== */
-const actions = {
-  start() { go(state.index + 1); },
-  next() { go(state.index + 1); },
-  back() { go(state.index - 1); },
-
-  choose(el) {
-    state.answers[el.dataset.key] = el.dataset.value;
-    state.answerTimesMs[el.dataset.key] = Math.round(performance.now() - screenEnteredAt);
-    el.parentElement.querySelectorAll('.option').forEach((b) => b.classList.toggle('selected', b === el));
-    setTimeout(() => go(state.index + 1), 220);
-  },
-
-  channel(el) {
-    const ear = el.dataset.value;
-    document.querySelectorAll('.ear-btn').forEach((b) => b.classList.toggle('active', b === el));
-    clearTimeout(channelTimer);
-    Tone.start(1000, ear, CONFIG.levels.start - 10);
-    channelTimer = setTimeout(() => { Tone.stop(); el.classList.remove('active'); }, 2300);
-  },
-
-  mic() {
-    mic.status = 'listening';
-    render();
-    RoomCheck.run(
-      (db) => {
-        const bar = $('#micBar');
-        if (bar) bar.style.width = Math.max(2, Math.min(100, (db + 90) * (100 / 70))) + '%';
-      },
-      (stats) => {
-        if (SCREENS[state.index] !== 'quiet') return;
-        const env = state.environment;
-        if (stats == null) { mic.status = 'denied'; env.micStatus = 'UNAVAILABLE'; }
-        else {
-          env.micMedianDbfs = Math.round(stats.median);
-          env.micP90Dbfs = Math.round(stats.p90);
-          env.micMaxDbfs = Math.round(stats.max);
-          env.micLoudShare = Math.round(stats.loudShare * 100) / 100;
-          env.micDevice = stats.device;
-          mic.status = stats.noisy ? 'noisy' : 'quiet';
-          env.micStatus = mic.status.toUpperCase();
-        }
-        updateNoise();
-        render();
-      },
-    );
-  },
-
-  noiseRating(el) {
-    state.environment.selfRating = el.dataset.value;
-    updateNoise();
-    render();
-  },
-
-  play() {
-    if (tone.playing) {
+  return {
+    setLang(next) {
+      if (next === lang || (next !== 'ar' && next !== 'en')) return;
+      lang = next;
+      state.language = next;
+      render();
+    },
+    destroy() {
       Tone.stop();
-      tone.playing = false;
-    } else {
-      const s = SEQUENCE[toneIndex()];
-      Tone.start(s.freq, s.ear, tone.att);
-      tone.playing = true;
-      tone.played = true;
-      if (!tone.firstPlay) tone.firstPlay = performance.now();
-    }
-    updateToneUI();
-  },
-
-  louder() { changeLevel(-CONFIG.levels.step); },
-  quieter() { changeLevel(CONFIG.levels.step); },
-
-  retry() {
-    Tone.stop();
-    resetTone();
-    updateToneUI();
-  },
-
-  toneNext() { if (tone.played) recordTone('COMPLETED'); },
-  notHeard() { recordTone('NOT_HEARD'); },
-
-  showResults() {
-    state.results = computeResults();
-    state.completed = true;
-    state.endedAt = new Date().toISOString();
-    go(state.index + 1);
-  },
-
-  toggleDetails() {
-    detailsOpen = !detailsOpen;
-    render();
-    if (detailsOpen) $('#detailsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  },
-
-  print() { window.print(); },
-  copyResult(el) { copyText(summaryText(), el); },
-  copyData(el) { copyText(JSON.stringify(state, null, 2), el); },
-  download() {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `hearing-check-${state.id}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  },
-  retake() {
-    state = newState();
-    state.consent = true;
-    mic = null;
-    go(1);
-  },
-};
-
-// A completed microphone measurement decides; the self-rating only decides when the mic is unavailable.
-function updateNoise() {
-  const env = state.environment;
-  const measured = mic.status === 'quiet' || mic.status === 'noisy';
-  env.noiseSource = measured ? 'MICROPHONE' : 'SELF_RATING';
-  env.noiseMasked = measured ? mic.status === 'noisy' : env.selfRating === 'LOUD';
-}
-
-function copyText(text, el) {
-  const label = el.textContent;
-  const fallback = () => {
-    const box = $('#copyBox');
-    $('#copyMsg').hidden = false;
-    box.hidden = false;
-    box.value = text;
-    box.focus();
-    box.select();
+      RoomCheck.cancel();
+      clearTimeout(channelTimer);
+      document.removeEventListener('keydown', onKey);
+    },
   };
-  try {
-    navigator.clipboard.writeText(text).then(() => {
-      el.textContent = '✓ ' + t('copied');
-      setTimeout(() => { el.textContent = label; }, 1800);
-    }, fallback);
-  } catch (e) {
-    fallback();
-  }
 }
-
-function changeLevel(delta) {
-  const L = CONFIG.levels;
-  const target = tone.att + delta;
-  if (target < L.min) { tone.msg = t('maxReached'); updateToneUI(); return; }
-  if (target > L.max) { tone.msg = t('minReached'); updateToneUI(); return; }
-  tone.att = target;
-  tone.msg = '';
-  if (!tone.playing) actions.play();
-  tone.presses.push({ op: delta < 0 ? 'UP' : 'DOWN', atMs: Math.round(performance.now() - tone.firstPlay), dbFullScale: target });
-  Tone.setLevel(tone.att);
-  updateToneUI();
-}
-
-// Stored like the live screener: dbFullScale is the attenuation in dB below full scale.
-function recordTone(status) {
-  const s = SEQUENCE[toneIndex()];
-  const rec = {
-    dbFullScale: status === 'NOT_HEARD' ? CONFIG.levels.min : tone.att,
-    measurementStatus: status,
-    noiseMasked: state.environment.noiseMasked,
-    durationInMilliseconds: Math.round(performance.now() - screenEnteredAt),
-    volumeOperationsSequence: tone.presses,
-  };
-  state.measurements[earKey(s.ear)]['hz' + s.freq] = rec;
-  state.measurements.BOTH[(s.ear === 'right' ? 'R' : 'L') + s.freq] = rec;
-  go(state.index + 1);
-}
-
-app.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-action]');
-  if (!el || el.disabled) return;
-  const fn = actions[el.dataset.action];
-  if (fn) fn(el);
-});
-
-app.addEventListener('change', (e) => {
-  if (e.target.id === 'consent') {
-    state.consent = e.target.checked;
-    $('[data-action="start"]').disabled = !state.consent;
-  }
-});
-
-document.addEventListener('keydown', (e) => {
-  if (!SCREENS[state.index].startsWith('tone') || e.metaKey || e.ctrlKey || e.altKey) return;
-  if (e.key === '+' || e.key === '=' || e.key === 'ArrowUp') { e.preventDefault(); actions.louder(); }
-  else if (e.key === '-' || e.key === '_' || e.key === 'ArrowDown') { e.preventDefault(); actions.quieter(); }
-});
-
-$('#langToggle').addEventListener('click', () => {
-  lang = lang === 'en' ? 'ar' : 'en';
-  state.language = lang;
-  try { localStorage.setItem('hc-lang', lang); } catch (e) { /* storage blocked */ }
-  render();
-});
-
-state = newState();
-screenEnteredAt = performance.now();
-render();
