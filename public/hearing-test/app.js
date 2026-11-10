@@ -6,7 +6,6 @@
  * HearingEngine.CONFIG for calibration, σ, regression and cut-offs.
  * ===================================================================== */
 const CONFIG = {
-  bookingUrl: '/',            // "Book a hearing test" link — change to your booking / WhatsApp page
   guideUrl: '/',              // "Learn about hearing aids" link
   paperUrl: 'https://doi.org/10.1177/23312165251317923',
 
@@ -127,27 +126,21 @@ const I18N = {
     GOOD_title: 'Your hearing appears to be in the normal range',
     GOOD_short: 'At the tones we tested, your hearing seems fine.',
     GOOD_mean: 'People with this result usually follow conversations without difficulty in everyday situations.',
-    GOOD_next: 'Hearing can change over time. Take this check again in a year or two, and see a hearing care professional sooner if you notice changes.',
     FAIR_title: 'Your result is borderline',
     FAIR_short: 'You may have the beginning of a hearing loss.',
     FAIR_mean: 'People with this result can miss some soft or high-pitched sounds, especially in noisy places.',
-    FAIR_next: 'We recommend a full hearing test with a professional to find out more. Protect your hearing from loud noise in the meantime.',
     POOR_title: 'You may have a hearing loss',
     POOR_short: 'The screening suggests your hearing is below the normal range.',
     POOR_mean: 'People with this result often find conversations hard to follow, on the phone, in groups and in noisy places.',
-    POOR_next: 'This screening is not a substitute for a professional hearing test. Please book a full hearing assessment: many types of hearing loss can be treated or helped.',
     INCONCLUSIVE_title: 'We could not get a reliable result',
     INCONCLUSIVE_short: 'Something during the check made the result unreliable.',
     INCONCLUSIVE_mean: 'Background noise, a rushed answer or a headphone problem can all change the tones you hear.',
-    INCONCLUSIVE_next: 'Find a quiet room, check your wired headphones, set the volume to 100% and take the check again.',
     reasonNOISE: 'Your room was too noisy for a reliable result.',
     reasonTOO_FAST: 'Most tones were answered very quickly without adjusting the volume.',
     asymNote: 'Your two ears heard the 4,000 Hz tone quite differently. A difference between ears should always be checked by a professional.',
     mismatchNote: 'You told us you notice hearing difficulties in daily life. Even with this result, a full hearing test is a good idea.',
     uncalNote: 'This check has not been calibrated for your headphones yet, so the values are estimates.',
     whatMeans: 'What does this mean?',
-    nextSteps: 'Next steps',
-    book: 'Book a hearing test',
     learn: 'Learn about hearing aids',
     retake: 'Do the test again',
     detailed: 'Detailed results',
@@ -241,27 +234,21 @@ const I18N = {
     GOOD_title: 'يبدو أن سمعك ضمن المعدل الطبيعي',
     GOOD_short: 'في النغمات التي اختبرناها، يبدو سمعك جيدًا.',
     GOOD_mean: 'عادةً ما يتابع أصحاب هذه النتيجة المحادثات دون صعوبة في المواقف اليومية.',
-    GOOD_next: 'قد يتغيّر السمع مع الوقت. أعد هذا الفحص بعد عام أو عامين، وراجع أخصائي سمع في وقت أقرب إذا لاحظت أي تغيّر.',
     FAIR_title: 'نتيجتك على الحد الفاصل',
     FAIR_short: 'قد تكون لديك بداية ضعف في السمع.',
     FAIR_mean: 'قد يفوت أصحاب هذه النتيجة بعض الأصوات المنخفضة أو الحادة، خاصة في الأماكن الصاخبة.',
-    FAIR_next: 'ننصحك بإجراء فحص سمع شامل لدى أخصائي لمعرفة المزيد، وبحماية سمعك من الضوضاء العالية في الأثناء.',
     POOR_title: 'قد يكون لديك ضعف في السمع',
     POOR_short: 'تشير نتيجة الفحص إلى أن سمعك أقل من المعدل الطبيعي.',
     POOR_mean: 'غالبًا ما يجد أصحاب هذه النتيجة صعوبة في متابعة المحادثات، عبر الهاتف وفي المجموعات وفي الأماكن الصاخبة.',
-    POOR_next: 'هذا الفحص لا يغني عن فحص السمع لدى أخصائي. يُرجى حجز تقييم شامل للسمع، فكثير من أنواع ضعف السمع يمكن علاجها أو التخفيف منها.',
     INCONCLUSIVE_title: 'لم نتمكن من الحصول على نتيجة موثوقة',
     INCONCLUSIVE_short: 'حدث أمر أثناء الفحص جعل النتيجة غير موثوقة.',
     INCONCLUSIVE_mean: 'قد تؤثر الضوضاء المحيطة أو الإجابة السريعة أو مشكلة في السماعات على النغمات التي تسمعها.',
-    INCONCLUSIVE_next: 'انتقل إلى غرفة هادئة، وتحقّق من السماعات السلكية، واضبط الصوت على 100%، ثم أعد الفحص.',
     reasonNOISE: 'كانت غرفتك صاخبة جدًا للحصول على نتيجة موثوقة.',
     reasonTOO_FAST: 'تمت الإجابة على معظم النغمات بسرعة كبيرة دون تعديل مستوى الصوت.',
     asymNote: 'سمعت أذناك نغمة 4000 هرتز بشكل مختلف بوضوح. يجب أن يفحص أخصائي أي اختلاف بين الأذنين.',
     mismatchNote: 'ذكرت أنك تلاحظ صعوبات في السمع في حياتك اليومية. حتى مع هذه النتيجة، يُستحسن إجراء فحص سمع شامل.',
     uncalNote: 'لم تتم معايرة هذا الفحص لسماعاتك بعد، لذا فالقيم تقديرية.',
     whatMeans: 'ماذا تعني هذه النتيجة؟',
-    nextSteps: 'الخطوات التالية',
-    book: 'احجز فحص سمع',
     learn: 'تعرّف على السماعات',
     retake: 'أعد الفحص',
     detailed: 'النتائج التفصيلية',
@@ -787,17 +774,12 @@ function viewResults() {
       <summary>${esc(t('whatMeans'))}</summary>
       <p>${esc(t(v + '_mean'))}</p>
     </details>
-    <details class="more" open>
-      <summary>${esc(t('nextSteps'))}</summary>
-      <p>${esc(t(v + '_next'))}</p>
-    </details>
 
     <div class="cta">
       ${v === 'INCONCLUSIVE'
         ? `<button type="button" class="btn btn-primary btn-block" data-action="retake">${esc(t('retake'))}</button>`
-        : `<a class="btn btn-primary btn-block" href="${esc(CONFIG.bookingUrl)}">${esc(t('book'))}</a>
-           <div class="row">
-             <button type="button" class="btn btn-secondary" data-action="toggleDetails" aria-expanded="${detailsOpen}">${esc(t('detailed'))}</button>
+        : `<div class="row">
+             <button type="button" class="btn btn-primary" data-action="toggleDetails" aria-expanded="${detailsOpen}">${esc(t('detailed'))}</button>
              <a class="btn btn-secondary" href="${esc(CONFIG.guideUrl)}">${esc(t('learn'))}</a>
            </div>
            <button type="button" class="btn btn-text" data-action="retake">↺ ${esc(t('retake'))}</button>`}
