@@ -5,7 +5,8 @@
 
 import React from 'react';
 import { Language } from '../types/hearingAid.ts';
-import { Globe, Printer, Sparkles, BookOpen, SlidersHorizontal, Palette, RotateCcw, Ear, Home } from 'lucide-react';
+import { Globe, Printer, Sparkles, BookOpen, SlidersHorizontal, Palette, RotateCcw, Ear, Home, Download } from 'lucide-react';
+import { useInstallPrompt } from '../utils/installPrompt.ts';
 
 interface HeaderProps {
   lang: Language;
@@ -30,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   showAdvisorActions = true
 }) => {
   const isAr = lang === 'ar';
+  const { canInstall, install } = useInstallPrompt();
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-2xs no-print">
@@ -179,6 +181,17 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <Printer className="w-3.5 h-3.5 text-[#007CA6]" />
                 <span className="hidden sm:inline">{isAr ? 'طباعة التقرير' : 'Print Report'}</span>
+              </button>
+            )}
+
+            {canInstall && (
+              <button
+                onClick={install}
+                className="px-3 py-1.5 text-xs font-semibold text-[#007CA6] border border-[#007CA6]/40 hover:bg-[#E8F6FA] bg-white rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                title={isAr ? 'ثبّت الدليل كتطبيق على جهازك' : 'Install the guide as an app on this device'}
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{isAr ? 'تثبيت التطبيق' : 'Install app'}</span>
               </button>
             )}
 

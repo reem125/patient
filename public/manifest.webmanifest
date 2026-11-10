@@ -1,0 +1,22 @@
+{
+  "id": "/",
+  "name": "رؤية الطبية · دليل سماعات هانزاتون وفحص السمع",
+  "short_name": "رؤية الطبية",
+  "description": "فحص سمع مبدئي ودليل لاختيار سماعة هانزاتون المناسبة من رؤية الطبية. Vision Medical hearing check and HANSATON hearing aid guide.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#007CA6",
+  "categories": ["health", "medical"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "فحص السمع", "short_name": "فحص السمع", "url": "/#hearing-test", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
