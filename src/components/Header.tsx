@@ -100,12 +100,12 @@ export const Header: React.FC<HeaderProps> = ({
               <img
                 src="/assets/aistudio/Vision_Logo_En_Ar_-_Horizontal_Colors-1_31408bb2.jpg"
                 alt="Vision Medical - رؤية الطبية"
-                className="h-9 sm:h-11 w-auto object-contain"
+                className="h-11 sm:h-14 w-auto object-contain"
                 referrerPolicy="no-referrer"
               />
             </div>
 
-            <div className="h-7 w-px bg-slate-200 mx-0.5 sm:mx-1 hidden xs:block" />
+            <div className="h-8 sm:h-10 w-px bg-slate-200 mx-0.5 sm:mx-1 hidden xs:block" />
 
             {/* Official HANSATON Logo Image */}
             <div className="flex items-center gap-2">
