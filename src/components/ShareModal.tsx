@@ -102,7 +102,7 @@ ${typeof window !== 'undefined' ? window.location.href : ''}`;
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-600 hover:bg-slate-100 transition-colors"
             aria-label="Close"
           >
             <X className="w-5 h-5" />

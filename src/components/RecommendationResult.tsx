@@ -68,10 +68,10 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
             className="px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-slate-600 hover:text-[#007CA6] bg-white/90 hover:bg-white rounded-es-xl border-b border-s border-slate-200 shadow-2xs transition-all flex items-center gap-1.5 me-1.5 sm:me-2"
             title={isAr ? 'مسح النتائج والبدء من جديد' : 'Clear results and start again'}
           >
-            <RotateCcw className="w-3.5 h-3.5 text-[#F38B21]" />
+            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
             <span>{isAr ? 'البدء من جديد' : 'Start Again'}</span>
           </button>
-          <div className="bg-gradient-to-r from-[#007CA6] to-[#F38B21] text-white px-4 sm:px-5 py-2 rounded-es-2xl text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-xs">
+          <div className="bg-[#007CA6] text-white px-4 sm:px-5 py-2 rounded-es-2xl text-xs font-bold tracking-wide flex items-center gap-1.5 shadow-xs">
             <Sparkles className="w-3.5 h-3.5 text-white" />
             <span>{isAr ? 'الخيار الأنسب لنمط حياتك' : 'Top Lifestyle Match'}</span>
           </div>
@@ -128,7 +128,7 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
           {/* Details & Badges */}
           <div className="flex-1">
             <div className="text-xs font-bold text-[#007CA6] tracking-wider uppercase mb-2 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#F38B21]" />
+              <span className="w-2 h-2 rounded-full bg-[#007CA6]" />
               <span>{isAr ? 'نتيجة دليل الاختيار' : 'Advisor result'}</span>
             </div>
 
@@ -159,8 +159,8 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
                 </span>
               )}
 
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FEF6EE] text-[#D97312] border border-[#F38B21]/25">
-                <Volume2 className="w-4 h-4 text-[#F38B21]" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E8F6FA] text-[#00688C] border border-[#007CA6]/25">
+                <Volume2 className="w-4 h-4 text-[#007CA6]" />
                 <span>{primaryModel.idealForDegree[lang]}</span>
               </span>
             </div>
@@ -168,7 +168,7 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
         </div>
 
         {/* Recommended Performance Tier Spotlight with Vision Colors */}
-        <div className="mt-6 p-6 sm:p-7 rounded-2xl bg-gradient-to-br from-[#06243E] via-[#093557] to-[#041A2E] text-white border border-[#007CA6]/30 relative overflow-hidden shadow-sm">
+        <div className="mt-6 p-6 sm:p-7 rounded-2xl bg-gradient-to-br from-[#063B52] via-[#075570] to-[#042A3B] text-white border border-[#007CA6]/30 relative overflow-hidden shadow-sm">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
             <div>
               <span className="text-[11px] font-bold text-[#70C9E8] uppercase tracking-widest block mb-1">
@@ -181,7 +181,7 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
 
             <div className="flex items-center gap-4 text-xs shrink-0">
               <div className="text-center px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15">
-                <div className="text-xl font-bold font-mono text-[#F9B233]">{recommendedLevel.environmentsCount}</div>
+                <div className="text-xl font-bold font-mono text-[#70C9E8]">{recommendedLevel.environmentsCount}</div>
                 <div className="text-slate-300 text-[11px]">{isAr ? 'بيئات سمعية تلقائية' : 'Sound Environments'}</div>
               </div>
 
@@ -209,7 +209,7 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
                   <div className="font-bold text-[#A3DCF1] flex items-center justify-between">
                     <span>{feat.name}</span>
                     {feat.isExclusiveToNine && (
-                      <span className="text-[10px] text-amber-300 bg-amber-500/20 px-1.5 py-0.2 rounded font-normal">
+                      <span className="text-[10px] text-[#A3DCF1] bg-[#0099D8]/20 px-1.5 py-0.2 rounded font-normal">
                         {isAr ? 'حصرية بالمستوى 9' : 'Level 9 Exclusive'}
                       </span>
                     )}
@@ -312,10 +312,10 @@ export const RecommendationResult: React.FC<RecommendationResultProps> = ({
 
             <button
               onClick={onStartAgain}
-              className="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-amber-950 bg-[#FEF6EE] hover:bg-[#FEEAD4] border border-[#F38B21]/40 transition-all flex items-center gap-2 shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
+              className="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 transition-all flex items-center gap-2 shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
               title={isAr ? 'مسح النتائج والبدء من جديد من الخطوة الأولى' : 'Clear results and start again from step 1'}
             >
-              <RotateCcw className="w-4 h-4 text-[#F38B21]" />
+              <RotateCcw className="w-4 h-4 text-slate-500" />
               <span>{isAr ? 'البدء من جديد' : 'Start Again'}</span>
             </button>
           </div>

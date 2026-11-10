@@ -82,7 +82,7 @@ export const ComparisonMatrix: React.FC<ComparisonMatrixProps> = ({
                     : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                 }`}
               >
-                <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-[#F38B21]' : 'bg-slate-300'}`} />
+                <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-[#007CA6]' : 'bg-slate-300'}`} />
                 <span>{model.name[lang]}</span>
               </button>
             );
@@ -113,7 +113,7 @@ export const ComparisonMatrix: React.FC<ComparisonMatrixProps> = ({
                         {model.family} · {model.code}
                       </span>
                       {model.isRechargeable && (
-                        <span className="text-[11px] font-bold text-[#D97312] bg-[#FEF3E7] px-1.5 py-0.5 rounded-md border border-[#F38B21]/30">
+                        <span className="text-[11px] font-bold text-[#00688C] bg-[#E8F6FA] px-1.5 py-0.5 rounded-md border border-[#007CA6]/25">
                           {isAr ? 'شحن ليثيوم' : 'Li-ion Recharge'}
                         </span>
                       )}
@@ -215,7 +215,7 @@ export const ComparisonMatrix: React.FC<ComparisonMatrixProps> = ({
                         <span>{isAr ? 'مدعوم (نقرة مزدوجة للرد)' : 'Supported (Double-tap)'}</span>
                       </span>
                     ) : (
-                      <span className="text-slate-400 flex items-center gap-1">
+                      <span className="text-slate-500 flex items-center gap-1">
                         <X className="w-4 h-4" />
                         <span>{isAr ? 'غير مدعوم' : 'Not available'}</span>
                       </span>

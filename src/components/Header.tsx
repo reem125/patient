@@ -96,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-600 hover:text-[#007CA6] hover:bg-[#F0F9FC]'
               }`}
             >
-              <Sparkles className="w-4 h-4 text-[#F38B21]" />
+              <Sparkles className="w-4 h-4 text-[#007CA6]" />
               <span>{isAr ? 'اختر سماعتك' : 'Choose Your Aid'}</span>
             </button>
 
@@ -143,7 +143,7 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-600 hover:text-[#007CA6] hover:bg-[#F0F9FC]'
               }`}
             >
-              <Palette className="w-4 h-4 text-[#F38B21]" />
+              <Palette className="w-4 h-4 text-[#007CA6]" />
               <span>{isAr ? 'الألوان' : 'Colors'}</span>
             </button>
 
@@ -163,10 +163,10 @@ export const Header: React.FC<HeaderProps> = ({
             {showAdvisorActions && hasRecommendation && onStartAgain && (
               <button
                 onClick={onStartAgain}
-                className="px-3 py-1.5 text-xs font-bold text-amber-950 bg-[#FEF6EE] hover:bg-[#FEEAD4] border border-[#F38B21]/40 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-2xs"
+                className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-2xs"
                 title={isAr ? 'مسح النتائج والبدء من جديد' : 'Clear results and start again'}
               >
-                <RotateCcw className="w-3.5 h-3.5 text-[#F38B21]" />
+                <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
                 <span className="hidden sm:inline">{isAr ? 'البدء من جديد' : 'Start Again'}</span>
               </button>
             )}

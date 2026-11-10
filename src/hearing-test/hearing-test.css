@@ -2,12 +2,12 @@
  * screener can live inside the React app without touching the site's styles.
  * Layout: one centred card per step. */
 .hc-root {
-  --bg: #f1f5f6;
+  --bg: #F8FAFC;          /* slate-50, same greys as the rest of the site */
   --surface: #ffffff;
-  --surface-2: #ebf1f3;
-  --text: #13232e;
-  --muted: #566a76;
-  --border: #d7e1e6;
+  --surface-2: #F1F5F9;
+  --text: #0F172A;
+  --muted: #475569;
+  --border: #E2E8F0;
   --brand: #007CA6;
   --brand-strong: #00688C;
   --brand-soft: #E8F6FA;
@@ -24,7 +24,7 @@
   --maybe-soft: #fdf6e6;
   --poor: #c8372d;
   --poor-soft: #fbe5e3;
-  --neutral-soft: #eceff3;
+  --neutral-soft: #F1F5F9;
   --radius: 16px;
   --shadow: 0 1px 2px rgba(16, 36, 48, .05), 0 8px 28px rgba(16, 36, 48, .07);
   --font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

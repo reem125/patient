@@ -60,7 +60,7 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
   );
 
   const situationIcons: Record<string, React.ReactNode> = {
-    'car-conversations': <Car className="w-5 h-5 text-amber-600" />,
+    'car-conversations': <Car className="w-5 h-5 text-[#007CA6]" />,
     'large-parties': <PartyPopper className="w-5 h-5 text-indigo-600" />,
     'business-meetings': <Briefcase className="w-5 h-5 text-sky-600" />,
     'cafes-and-markets': <ShoppingBag className="w-5 h-5 text-teal-600" />,
@@ -134,11 +134,11 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
   return (
     <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
       {/* Progress Header with Vision Medical styling */}
-      <div className="border-b border-slate-200 bg-gradient-to-r from-[#F0F9FC] via-[#F8FBFC] to-[#FEF6EE] p-5 sm:p-7">
+      <div className="border-b border-slate-200 bg-gradient-to-r from-[#F0F9FC] to-white p-5 sm:p-7">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#007CA6] tracking-wider uppercase mb-1">
-              <span className="w-2 h-2 rounded-full bg-[#F38B21]" />
+              <span className="w-2 h-2 rounded-full bg-[#007CA6]" />
               <span>{isAr ? `الخطوة ${step} من 4` : `Step ${step} of 4`}</span>
             </div>
             <h2 className="text-lg sm:text-xl font-extrabold text-slate-900">
@@ -159,7 +159,7 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
                   step === num
                     ? 'bg-[#007CA6] text-white shadow-sm ring-2 ring-[#007CA6]/30'
                     : step > num
-                    ? 'bg-[#FEF3E7] text-[#D97312] border border-[#F38B21]/30 font-bold'
+                    ? 'bg-[#E8F6FA] text-[#00688C] border border-[#007CA6]/30 font-bold'
                     : 'bg-white text-slate-500 border border-slate-200 hover:border-slate-300'
                 }`}
               >
@@ -186,7 +186,7 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
               className="ms-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-[#007CA6] hover:bg-slate-100 transition-colors flex items-center gap-1.5 border border-slate-200 shadow-2xs"
               title={isAr ? 'إعادة ضبط الاستبيان والبدء من جديد' : 'Reset quiz and start again'}
             >
-              <RotateCcw className="w-3.5 h-3.5 text-[#F38B21]" />
+              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
               <span className="hidden sm:inline">{isAr ? 'البدء من جديد' : 'Start Again'}</span>
             </button>
           </div>
@@ -423,12 +423,12 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
                   <span>{isAr ? 'عدد المواقف:' : 'Selected:'}</span>
                   <span className="font-mono text-[#007CA6] font-extrabold text-sm">{currentSituationCount}</span>
                   <span>·</span>
-                  <span className="font-bold text-[#06243E]">{isAr ? `يقترح المستوى ${estimatedLevel}` : `Suggests Level ${estimatedLevel}`}</span>
+                  <span className="font-bold text-[#063B52]">{isAr ? `يقترح المستوى ${estimatedLevel}` : `Suggests Level ${estimatedLevel}`}</span>
                 </div>
               </div>
 
               {/* Guide scoring banner */}
-              <div className="mb-4 p-3.5 bg-gradient-to-r from-[#E8F6FA] to-[#FEF6EE] border border-[#007CA6]/25 rounded-xl flex items-start gap-2.5 text-xs text-slate-800">
+              <div className="mb-4 p-3.5 bg-[#F0F9FC] border border-[#007CA6]/25 rounded-xl flex items-start gap-2.5 text-xs text-slate-800">
                 <Info className="w-4 h-4 text-[#007CA6] shrink-0 mt-0.5" />
                 <div>
                   {isAr
@@ -461,7 +461,7 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
                             {item.label[lang]}
                           </span>
                           {item.isHighNoiseOrCar && (
-                            <span className="text-[10px] font-bold text-[#D97312] bg-[#FEF3E7] border border-[#F38B21]/30 px-1.5 py-0.5 rounded shrink-0">
+                            <span className="text-[10px] font-bold text-[#00688C] bg-[#E8F6FA] border border-[#007CA6]/25 px-1.5 py-0.5 rounded shrink-0">
                               {isAr ? 'مستوى 9' : 'Level 9'}
                             </span>
                           )}
@@ -520,7 +520,7 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
                   },
                   {
                     id: 'durability',
-                    icon: <ShieldCheck className="w-5 h-5 text-amber-600" />,
+                    icon: <ShieldCheck className="w-5 h-5 text-[#007CA6]" />,
                     title: isAr ? 'متانة عالية وسهولة مسك (Essenz BTE)' : 'Rugged Build & Easy Grip (Essenz BTE)',
                     desc: isAr ? 'هيكل قوي يتحمل الاستخدام الشاق والعرق، وأزرار واضحة سهلة الضبط لكبار السن' : 'Heavy-duty durability against sweat, impact, with tactile buttons',
                     modelHint: isAr ? 'هانزاتون إيسنز BTE' : 'HANSATON Essenz BTE'
@@ -619,7 +619,7 @@ export const AdvisorQuiz: React.FC<AdvisorQuizProps> = ({
             <button
               type="button"
               onClick={handleFinish}
-              className="px-7 py-3 text-sm font-extrabold text-white bg-gradient-to-r from-[#007CA6] via-[#0092C7] to-[#F38B21] hover:brightness-105 rounded-xl shadow-md shadow-[#007CA6]/30 transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+              className="px-7 py-3 text-sm font-extrabold text-white bg-[#007CA6] hover:bg-[#00688C] rounded-xl shadow-md shadow-[#007CA6]/30 transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
             >
               <HeartPulse className="w-4 h-4 text-white" />
               <span>{isAr ? 'عرض الاقتراح المخصص' : 'Generate Personalized Recommendation'}</span>

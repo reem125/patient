@@ -48,10 +48,10 @@ export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSele
   return (
     <div className="space-y-8">
       {/* Educational Hero Banner with Vision Medical Colors */}
-      <div className="bg-gradient-to-br from-[#06243E] via-[#093557] to-[#041A2E] rounded-3xl p-6 sm:p-10 text-white shadow-md relative overflow-hidden border border-[#007CA6]/30">
+      <div className="bg-gradient-to-br from-[#063B52] via-[#075570] to-[#042A3B] rounded-3xl p-6 sm:p-10 text-white shadow-md relative overflow-hidden border border-[#007CA6]/30">
         {/* Ambient Vision Medical Brand Glows */}
         <div className="absolute -top-24 -end-24 w-80 h-80 rounded-full bg-[#007CA6]/25 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 start-1/4 w-72 h-72 rounded-full bg-[#F38B21]/15 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 start-1/4 w-72 h-72 rounded-full bg-[#0099D8]/15 blur-3xl pointer-events-none" />
 
         <div className="max-w-3xl relative z-10">
           <div className="flex flex-wrap items-center gap-2.5 mb-3.5">
@@ -63,8 +63,8 @@ export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSele
               />
             </div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0099D8]/20 border border-[#0099D8]/40 text-[#A3DCF1] text-xs font-bold shadow-2xs">
-              <span className="w-2 h-2 rounded-full bg-[#F38B21]" />
-              <BookOpen className="w-3.5 h-3.5 text-[#F38B21]" />
+              <span className="w-2 h-2 rounded-full bg-[#70C9E8]" />
+              <BookOpen className="w-3.5 h-3.5 text-[#70C9E8]" />
               <span>{isAr ? 'الدليل الطبي التثقيفي الشامل من رؤية الطبية' : 'Comprehensive Clinical Patient Guide by Vision Medical'}</span>
             </div>
           </div>
@@ -88,7 +88,7 @@ export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSele
               </span>
             </div>
             <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15">
-              <span className="font-bold text-[#F9B233] block mb-1">
+              <span className="font-bold text-[#A3DCF1] block mb-1">
                 {isAr ? '2. أي مستوى أداء؟' : '2. Which Level?'}
               </span>
               <span className="text-slate-300">
@@ -140,7 +140,7 @@ export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSele
                 <span className="text-xs font-bold text-sky-700 bg-sky-50 px-2.5 py-1 rounded-md border border-sky-100">
                   {isAr ? 'عائلة السماعات الخارجية' : 'External Aids Family'}
                 </span>
-                <span className="text-xs font-mono text-slate-400">HearIntelligence 6.0</span>
+                <span className="text-xs font-mono text-slate-500">HearIntelligence 6.0</span>
               </div>
               <h2 className="text-xl font-extrabold text-slate-900 mb-2">
                 {isAr ? 'عائلة هانزاتون إيسنز (HANSATON Essenz)' : 'HANSATON Essenz Family'}
@@ -172,7 +172,7 @@ export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSele
                 <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100">
                   {isAr ? 'عائلة السماعات الداخلية المخصصة' : 'Custom In-Ear Family'}
                 </span>
-                <span className="text-xs font-mono text-slate-400">Custom 3D Fit</span>
+                <span className="text-xs font-mono text-slate-500">Custom 3D Fit</span>
               </div>
               <h2 className="text-xl font-extrabold text-slate-900 mb-2">
                 {isAr ? 'عائلة هانزاتون ستراتوس (HANSATON STRATOS)' : 'HANSATON STRATOS Family'}
@@ -200,13 +200,13 @@ export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSele
           </div>
 
           {/* MarketTrak IX Insight Callout */}
-          <div className="p-6 rounded-3xl bg-gradient-to-r from-[#E8F6FA] to-[#FEF6EE] border border-[#007CA6]/25 shadow-2xs">
+          <div className="p-6 rounded-3xl bg-[#F0F9FC] border border-[#007CA6]/25 shadow-2xs">
             <div className="flex items-start gap-4">
               <div className="p-3.5 rounded-2xl bg-gradient-to-br from-[#007CA6] to-[#0099D8] text-white shrink-0 shadow-sm shadow-[#007CA6]/25">
                 <Clock className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#F38B21] uppercase tracking-wider">
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#007CA6] uppercase tracking-wider">
                   <span>MarketTrak IX Global Study</span>
                 </div>
                 <h3 className="text-base font-extrabold text-slate-900">
@@ -227,10 +227,10 @@ export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSele
       {activeSection === 'models' && (
         <div className="space-y-8">
           {/* Visual Category Explanation Banner */}
-          <div className="p-6 rounded-3xl bg-gradient-to-r from-[#06243E] via-[#083556] to-[#007CA6] text-white flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm relative overflow-hidden">
+          <div className="p-6 rounded-3xl bg-gradient-to-r from-[#063B52] via-[#075570] to-[#007CA6] text-white flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm relative overflow-hidden">
             <div className="absolute -top-12 -end-12 w-48 h-48 rounded-full bg-[#0099D8]/20 blur-2xl pointer-events-none" />
             <div className="space-y-1 relative z-10">
-              <span className="text-xs font-extrabold text-[#F38B21] uppercase tracking-wider block">
+              <span className="text-xs font-extrabold text-[#A3DCF1] uppercase tracking-wider block">
                 {isAr ? 'معرض صور وطرز سماعات هانزاتون الرسمية' : 'Official HANSATON Hearing Instrument Showcase'}
               </span>
               <h2 className="text-xl sm:text-2xl font-extrabold text-white">
@@ -402,7 +402,7 @@ export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSele
                 />
               </div>
               <div className="space-y-3 flex-1">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-400/30">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0099D8]/20 text-[#A3DCF1] text-xs font-bold border border-[#0099D8]/40">
                   <span>{isAr ? 'تركيز خاص: سماعات BTE خلف الأذن التقليدية' : 'Special Spotlight: Behind-The-Ear (BTE) Models'}</span>
                 </div>
                 <h3 className="text-xl font-extrabold text-white">
@@ -496,7 +496,7 @@ export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSele
               >
                 <span>{isAr ? `المستوى ${lvl}` : `Level ${lvl}`}</span>
                 <span className={`text-[11px] px-1.5 py-0.2 rounded font-mono ${
-                  selectedLevelTab === lvl ? 'bg-[#06243E] text-sky-200' : 'bg-slate-100 text-slate-600'
+                  selectedLevelTab === lvl ? 'bg-[#063B52] text-sky-200' : 'bg-slate-100 text-slate-600'
                 }`}>
                   {lvl === 9 ? (isAr ? 'الأول' : 'Flagship') : lvl === 7 ? (isAr ? 'رجال الأعمال' : 'Business') : lvl === 5 ? (isAr ? 'العملي' : 'Practical') : lvl === 3 ? (isAr ? 'الاقتصادي' : 'Essential') : (isAr ? 'الأساسي' : 'Basic')}
                 </span>
@@ -566,7 +566,7 @@ export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSele
                         <div className="font-bold text-slate-900 flex items-center justify-between mb-1">
                           <span>{feat.name}</span>
                           {feat.isExclusiveToNine && (
-                            <span className="text-[10px] text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded font-semibold">
+                            <span className="text-[10px] text-[#00688C] bg-[#E8F6FA] px-1.5 py-0.2 rounded font-semibold">
                               {isAr ? 'حصرية بالمستوى 9' : 'Level 9 Exclusive'}
                             </span>
                           )}
@@ -647,7 +647,7 @@ export const EducationalGuide: React.FC<EducationalGuideProps> = ({ lang, onSele
                     style={{ backgroundColor: color.hex, borderColor: color.borderHex || '#CBD5E1' }}
                   />
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-0.5">
                       {color.family}
                     </span>
                     <h4 className="font-bold text-sm text-slate-900">{color.name[lang]}</h4>

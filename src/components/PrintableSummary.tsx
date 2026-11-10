@@ -89,10 +89,10 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
           {onStartAgain && (
             <button
               onClick={onStartAgain}
-              className="px-4 py-2.5 text-xs sm:text-sm font-bold text-amber-950 bg-[#FEF6EE] hover:bg-[#FEEAD4] border border-[#F38B21]/40 rounded-xl transition-all flex items-center gap-2 shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
+              className="px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl transition-all flex items-center gap-2 shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
               title={isAr ? 'مسح النتائج والبدء من جديد' : 'Clear results and start again'}
             >
-              <RotateCcw className="w-4 h-4 text-[#F38B21]" />
+              <RotateCcw className="w-4 h-4 text-slate-500" />
               <span>{isAr ? 'البدء من جديد' : 'Start Again'}</span>
             </button>
           )}
@@ -107,7 +107,7 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
 
           <button
             onClick={handlePrint}
-            className="px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white bg-gradient-to-r from-[#007CA6] via-[#0092C7] to-[#F38B21] hover:brightness-105 rounded-xl shadow-sm shadow-[#007CA6]/30 transition-all flex items-center gap-2"
+            className="px-5 py-2.5 text-xs sm:text-sm font-extrabold text-white bg-[#007CA6] hover:bg-[#00688C] rounded-xl shadow-sm shadow-[#007CA6]/30 transition-all flex items-center gap-2"
           >
             <Printer className="w-4 h-4" />
             <span>{isAr ? 'طباعة الملخص' : 'Print Summary'}</span>
@@ -149,9 +149,9 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
           </div>
 
           {/* Patient Profile Summary Grid */}
-          <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#F0F9FC] to-[#FEF6EE] border border-[#007CA6]/20">
+          <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-[#F0F9FC] border border-[#007CA6]/20">
             <div className="flex items-center gap-2 text-xs font-extrabold text-[#007CA6] uppercase tracking-wider mb-2.5">
-              <span className="w-2 h-2 rounded-full bg-[#F38B21]" />
+              <span className="w-2 h-2 rounded-full bg-[#007CA6]" />
               <span>{isAr ? 'ملخص بيانات ونمط حياة المريض:' : 'Patient Profile & Lifestyle Summary:'}</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
@@ -297,12 +297,12 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
         <div className="border border-[#007CA6]/30 rounded-2xl p-6 bg-[#F8FBFC] print-break-inside-avoid">
           <div className="flex items-center gap-2 mb-3">
             <Stethoscope className="w-4 h-4 text-[#007CA6]" />
-            <h3 className="text-xs font-extrabold text-[#06243E] uppercase tracking-wider">
+            <h3 className="text-xs font-extrabold text-[#063B52] uppercase tracking-wider">
               {isAr ? 'ملاحظات وتوصيات أخصائي السمعيات بالعيادة:' : 'Clinical Evaluation & Fitting Notes (For Audiologist):'}
             </h3>
           </div>
 
-          <div className="h-24 border border-dashed border-[#007CA6]/40 rounded-lg bg-white mb-4 p-3 text-xs text-slate-400">
+          <div className="h-24 border border-dashed border-[#007CA6]/40 rounded-lg bg-white mb-4 p-3 text-xs text-slate-500">
             {isAr ? 'تدوين نتائج فحص السمع (Audiogram) ومقاس الأذن وتفضيل المريض...' : 'Audiogram PTA, ear impression notes, and REM verification details...'}
           </div>
 
@@ -319,7 +319,7 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="mt-8 pt-4 border-t border-slate-200 text-center text-[10px] text-slate-400">
+        <div className="mt-8 pt-4 border-t border-slate-200 text-center text-[10px] text-slate-500">
           <span>{isAr ? 'رؤية الطبية · الموزع والشريك المعتمد لسماعات هانزاتون (HANSATON) السويسرية' : 'Vision Medical · Authorized Partner for HANSATON Swiss Hearing Systems'}</span>
         </div>
 
