@@ -5,7 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Language } from '../types/hearingAid.ts';
-import { Globe, Printer, Sparkles, BookOpen, SlidersHorizontal, Palette, RotateCcw, Ear, Home, Download, X } from 'lucide-react';
+import { Globe, Printer, Sparkles, BookOpen, SlidersHorizontal, Palette, RotateCcw, Ear, Home, Download, X, CheckCircle2 } from 'lucide-react';
 import { useInstallPrompt, installBrowser } from '../utils/installPrompt.ts';
 
 // Manual install steps, for browsers that have not offered installation themselves.
@@ -19,12 +19,12 @@ const INSTALL_STEPS: Record<ReturnType<typeof installBrowser>, { ar: string[]; e
     en: ['Tap the browser menu (⋮) at the top of the screen', 'Choose “Install app” or “Add to Home screen”', 'Tap “Install”'],
   },
   chrome: {
-    ar: ['افتح قائمة Chrome (⋮) أعلى اليمين', 'اختر «إرسال وحفظ ومشاركة» ثم «تثبيت الصفحة كتطبيق…»', 'أو اضغط أيقونة التثبيت في نهاية شريط العنوان'],
-    en: ['Open the Chrome menu (⋮) at the top right', 'Choose “Cast, save and share” → “Install page as app…”', 'Or click the install icon at the end of the address bar'],
+    ar: ['افتح قائمة Chrome (⋮) أعلى اليمين', 'اختر «إرسال وحفظ ومشاركة» ثم «تثبيت الصفحة كتطبيق…»', 'أو اضغط أيقونة التثبيت في نهاية شريط العنوان', 'إذا ظهر «فتح في التطبيق» في شريط العنوان، فالتطبيق مثبّت بالفعل: اضغطه لفتحه'],
+    en: ['Open the Chrome menu (⋮) at the top right', 'Choose “Cast, save and share” → “Install page as app…”', 'Or click the install icon at the end of the address bar', 'If “Open in app” shows in the address bar, the app is already installed: click it to open'],
   },
   edge: {
-    ar: ['افتح قائمة Edge (…) أعلى اليمين', 'اختر «التطبيقات» ثم «تثبيت هذا الموقع كتطبيق»'],
-    en: ['Open the Edge menu (…) at the top right', 'Choose “Apps” → “Install this site as an app”'],
+    ar: ['افتح قائمة Edge (…) أعلى اليمين', 'اختر «التطبيقات» ثم «تثبيت هذا الموقع كتطبيق»', 'إذا ظهر زر التطبيق في شريط العنوان، فالتطبيق مثبّت بالفعل: اضغطه لفتحه'],
+    en: ['Open the Edge menu (…) at the top right', 'Choose “Apps” → “Install this site as an app”', 'If an app button shows in the address bar, the app is already installed: click it to open'],
   },
   safari: {
     ar: ['من قائمة «ملف» أعلى الشاشة', 'اختر «إضافة إلى Dock»'],
@@ -34,6 +34,12 @@ const INSTALL_STEPS: Record<ReturnType<typeof installBrowser>, { ar: string[]; e
     ar: ['افتح الموقع في Google Chrome أو Microsoft Edge أو Safari', 'ثم اضغط «تثبيت التطبيق» مرة أخرى'],
     en: ['Open the site in Google Chrome, Microsoft Edge or Safari', 'Then press “Install app” again'],
   },
+};
+
+// Shown when the app is already installed on this device, so the browser no longer offers installation.
+const OPEN_INSTALLED_STEPS = {
+  ar: ['اضغط «فتح في التطبيق» في شريط العنوان', 'أو افتح أيقونة «رؤية الطبية» من سطح المكتب أو Launchpad أو قائمة ابدأ'],
+  en: ['Click “Open in app” in the address bar', 'Or open the “Vision Medical” icon from your desktop, Launchpad or Start menu'],
 };
 
 interface HeaderProps {
@@ -59,7 +65,7 @@ export const Header: React.FC<HeaderProps> = ({
   showAdvisorActions = true
 }) => {
   const isAr = lang === 'ar';
-  const { canInstall, isInstalledApp, install } = useInstallPrompt();
+  const { canInstall, isInstalledApp, isInstalledElsewhere, install } = useInstallPrompt();
   const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const installRef = useRef<HTMLDivElement>(null);
 
@@ -234,20 +240,26 @@ export const Header: React.FC<HeaderProps> = ({
                   className="px-3 py-1.5 text-xs font-semibold text-[#007CA6] border border-[#007CA6]/40 hover:bg-[#E8F6FA] bg-white rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
                   title={isAr ? 'ثبّت الدليل كتطبيق على جهازك' : 'Install the guide as an app on this device'}
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{isAr ? 'تثبيت التطبيق' : 'Install app'}</span>
+                  {isInstalledElsewhere ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
+                  <span className="hidden sm:inline">
+                    {isInstalledElsewhere ? (isAr ? 'التطبيق مثبّت' : 'App installed') : (isAr ? 'تثبيت التطبيق' : 'Install app')}
+                  </span>
                 </button>
 
                 {installHelpOpen && (
                   <div className="absolute top-full mt-2 end-0 w-72 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-lg p-4 z-50 text-start">
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="font-bold text-sm text-slate-900">{isAr ? 'تثبيت الدليل كتطبيق' : 'Install the guide as an app'}</div>
+                      <div className="font-bold text-sm text-slate-900">
+                        {isInstalledElsewhere
+                          ? (isAr ? 'التطبيق مثبّت على جهازك' : 'The app is installed on this device')
+                          : (isAr ? 'تثبيت الدليل كتطبيق' : 'Install the guide as an app')}
+                      </div>
                       <button onClick={() => setInstallHelpOpen(false)} className="text-slate-500 hover:text-slate-700" aria-label={isAr ? 'إغلاق' : 'Close'}>
                         <X className="w-4 h-4" />
                       </button>
                     </div>
                     <ol className="list-decimal ps-5 space-y-1.5 text-xs text-slate-600 leading-relaxed">
-                      {INSTALL_STEPS[installBrowser()][isAr ? 'ar' : 'en'].map((step) => (
+                      {(isInstalledElsewhere ? OPEN_INSTALLED_STEPS : INSTALL_STEPS[installBrowser()])[isAr ? 'ar' : 'en'].map((step) => (
                         <li key={step}>{step}</li>
                       ))}
                     </ol>

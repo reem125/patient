@@ -23,8 +23,17 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 window.addEventListener('appinstalled', () => {
   deferred = null;
+  installed = true;
   notify();
 });
+
+// Chrome / Edge can tell the site whether its own app is already installed (declared through
+// related_applications in the manifest). Once installed, the browser stops offering installation.
+let installed = false;
+const nav = navigator as Navigator & { getInstalledRelatedApps?: () => Promise<unknown[]> };
+nav.getInstalledRelatedApps?.()
+  .then((apps) => { installed = apps.length > 0; notify(); })
+  .catch(() => { /* not supported: keep showing the install option */ });
 
 const isStandalone = () =>
   window.matchMedia('(display-mode: standalone)').matches ||
@@ -45,6 +54,7 @@ export const installBrowser = (): 'ios' | 'android' | 'safari' | 'edge' | 'chrom
 /**
  * `canInstall`: the browser has offered installation, so `install()` opens its dialog.
  * `isInstalledApp`: the guide is already running as the installed app (no install button then).
+ * `isInstalledElsewhere`: this is a browser tab, but the app is already installed on this device.
  */
 export function useInstallPrompt() {
   const [, rerender] = useState(0);
@@ -63,5 +73,10 @@ export function useInstallPrompt() {
     notify();
   };
 
-  return { canInstall: deferred !== null && !isStandalone(), isInstalledApp: isStandalone(), install };
+  return {
+    canInstall: deferred !== null && !isStandalone(),
+    isInstalledApp: isStandalone(),
+    isInstalledElsewhere: installed && !isStandalone(),
+    install,
+  };
 }
