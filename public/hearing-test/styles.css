@@ -348,6 +348,7 @@ details.more p { padding: 0 16px 14px; margin: 0; color: var(--muted); }
 .chart .grid { stroke: var(--border); stroke-dasharray: 3 4; }
 .chart .axis { font-size: 12px; fill: var(--muted); }
 .chart .bar-right { fill: var(--right); } .chart .bar-left { fill: var(--left); }
+.chart .bar-value { font-size: 10px; font-weight: 700; fill: var(--text); font-variant-numeric: tabular-nums; }
 .legend .sw { width: 14px; height: 10px; border-radius: 3px; display: inline-block; }
 .sw-right { background: var(--right); } .sw-left { background: var(--left); }
 .table-wrap { overflow-x: auto; margin: 10px 0 14px; }

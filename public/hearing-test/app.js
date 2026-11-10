@@ -714,9 +714,13 @@ function chartSVG(r) {
   OUT_FREQS.forEach((f, k) => {
     const y0 = top + k * rowH;
     g += `<text x="${left - 10}" y="${y0 + rowH / 2 + 4}" text-anchor="end" class="axis">${f >= 1000 ? f / 1000 + ' k' : f} ${esc(t('hz'))}</text>`;
-    const rv = r.audiogram.R[f], lv = r.audiogram.L[f];
-    g += `<rect x="${x(0)}" y="${y0 + 6}" width="${Math.max(2, x(rv) - x(0))}" height="10" rx="3" class="bar-right"/>`;
-    g += `<rect x="${x(0)}" y="${y0 + 18}" width="${Math.max(2, x(lv) - x(0))}" height="10" rx="3" class="bar-left"/>`;
+    // A 0 dB HL threshold still gets a short visible bar, and every bar is labelled with its value.
+    [['R', 6, 'bar-right'], ['L', 18, 'bar-left']].forEach(([ear, dy, cls]) => {
+      const v = r.audiogram[ear][f];
+      const w = Math.max(8, x(v) - x(0));
+      g += `<rect x="${x(0)}" y="${y0 + dy}" width="${w}" height="10" rx="3" class="${cls}"/>`;
+      g += `<text x="${x(0) + w + 5}" y="${y0 + dy + 9}" class="bar-value">${v}</text>`;
+    });
   });
   return `<svg viewBox="0 0 ${W} ${H}" direction="ltr" role="img" aria-label="${esc(t('detailTitle'))}">${g}</svg>`;
 }
