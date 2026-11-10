@@ -37,10 +37,32 @@ export const Header: React.FC<HeaderProps> = ({
   showAdvisorActions = true
 }) => {
   const isAr = lang === 'ar';
-  // Install control: one click when the browser offers installation, a plain label once installed,
-  // and the Share steps on iPhone / iPad. Nothing otherwise.
+  // Install control: always shown until the app is installed. One click installs when the browser is
+  // ready; Chrome / Edge only become ready after a click on the page and about 30 seconds, so before
+  // that a one-line note says so. A plain label once installed; the Share steps on iPhone / iPad.
   const { canInstall, isInstalledApp, isInstalledElsewhere, install } = useInstallPrompt();
-  const showIosSteps = !canInstall && !isInstalledElsewhere && !isInstalledApp && isIOS();
+  const showIosSteps = !isInstalledElsewhere && !isInstalledApp && isIOS();
+  const showInstallButton = !isInstalledElsewhere && !isInstalledApp && !isIOS();
+  const [installNote, setInstallNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!installNote) return;
+    const timer = setTimeout(() => setInstallNote(null), 6000);
+    return () => clearTimeout(timer);
+  }, [installNote]);
+  useEffect(() => { if (canInstall) setInstallNote(null); }, [canInstall]);
+
+  const onInstallClick = () => {
+    if (canInstall) { install(); return; }
+    const ua = navigator.userAgent;
+    if (/Chrome\/|Edg\//.test(ua)) {
+      setInstallNote(isAr ? 'يجهّز المتصفح التثبيت… حاول مرة أخرى بعد لحظات' : 'Your browser is getting the install ready… try again in a moment');
+    } else if (/Safari\//.test(ua)) {
+      setInstallNote(isAr ? 'من قائمة «ملف» اختر «إضافة إلى Dock»' : 'From the File menu choose “Add to Dock”');
+    } else {
+      setInstallNote(isAr ? 'افتح الموقع في Chrome أو Edge لتثبيته كتطبيق' : 'Open the site in Chrome or Edge to install it as an app');
+    }
+  };
   const [iosHelpOpen, setIosHelpOpen] = useState(false);
   const iosHelpRef = useRef<HTMLDivElement>(null);
 
@@ -209,15 +231,22 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {canInstall && (
-              <button
-                onClick={install}
-                className="px-3 py-1.5 text-xs font-semibold text-[#007CA6] border border-[#007CA6]/40 hover:bg-[#E8F6FA] bg-white rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
-                title={isAr ? 'ثبّت الدليل كتطبيق على جهازك' : 'Install the guide as an app on this device'}
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{isAr ? 'تثبيت التطبيق' : 'Install app'}</span>
-              </button>
+            {showInstallButton && (
+              <div className="relative">
+                <button
+                  onClick={onInstallClick}
+                  className="px-3 py-1.5 text-xs font-semibold text-[#007CA6] border border-[#007CA6]/40 hover:bg-[#E8F6FA] bg-white rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                  title={isAr ? 'ثبّت الدليل كتطبيق على جهازك' : 'Install the guide as an app on this device'}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{isAr ? 'تثبيت التطبيق' : 'Install app'}</span>
+                </button>
+                {installNote && (
+                  <div role="status" className="absolute top-full mt-1.5 end-0 whitespace-nowrap max-w-[calc(100vw-2rem)] truncate px-2.5 py-1 rounded-md bg-slate-800 text-white text-[11px] shadow-md z-50">
+                    {installNote}
+                  </div>
+                )}
+              </div>
             )}
 
             {isInstalledElsewhere && (
