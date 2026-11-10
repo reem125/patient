@@ -5,13 +5,13 @@
 
 import React from 'react';
 import { Language } from '../types/hearingAid.ts';
-import { Globe, Printer, Sparkles, BookOpen, SlidersHorizontal, Palette, RotateCcw, Ear } from 'lucide-react';
+import { Globe, Printer, Sparkles, BookOpen, SlidersHorizontal, Palette, RotateCcw, Ear, Home } from 'lucide-react';
 
 interface HeaderProps {
   lang: Language;
   onLanguageChange: (lang: Language) => void;
-  activeTab: 'advisor' | 'devices' | 'levels' | 'compare' | 'colors' | 'hearing';
-  onTabChange: (tab: 'advisor' | 'devices' | 'levels' | 'compare' | 'colors' | 'hearing') => void;
+  activeTab: 'home' | 'advisor' | 'devices' | 'levels' | 'compare' | 'colors' | 'hearing';
+  onTabChange: (tab: 'home' | 'advisor' | 'devices' | 'levels' | 'compare' | 'colors' | 'hearing') => void;
   onPrintClick?: () => void;
   onStartAgain?: () => void;
   hasRecommendation?: boolean;
@@ -36,8 +36,13 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-4 h-20">
           
-          {/* Zone 1: Brand Wordmark & Official Logos */}
-          <div className="flex items-center gap-2 sm:gap-3.5 shrink-0">
+          {/* Zone 1: Brand Wordmark & Official Logos (Click to return to Home Portal) */}
+          <button
+            type="button"
+            onClick={() => onTabChange('home')}
+            className="flex items-center gap-2 sm:gap-3.5 shrink-0 text-start hover:opacity-90 transition-opacity cursor-pointer group"
+            title={isAr ? 'الصفحة الرئيسية' : 'Home'}
+          >
             {/* Vision Medical Logo */}
             <div className="flex items-center">
               <img
@@ -52,7 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Official HANSATON Logo Image */}
             <div className="flex items-center gap-2">
-              <div className="px-2 py-1 rounded-lg bg-slate-50 border border-slate-200/80 flex items-center shadow-2xs">
+              <div className="px-2 py-1 rounded-lg bg-slate-50 border border-slate-200/80 flex items-center shadow-2xs group-hover:border-[#007CA6]/40 transition-colors">
                 <img
                   src="/assets/aistudio/images__1__eff65cd3.png"
                   alt="HANSATON"
@@ -64,10 +69,22 @@ export const Header: React.FC<HeaderProps> = ({
                 {isAr ? 'شريك معتمد' : 'Authorized Partner'}
               </span>
             </div>
-          </div>
+          </button>
 
           {/* Zone 2: Navigation Links */}
           <nav className="hidden lg:flex items-center gap-1">
+            <button
+              onClick={() => onTabChange('home')}
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+                activeTab === 'home'
+                  ? 'bg-[#E8F6FA] text-[#007CA6] font-bold shadow-2xs'
+                  : 'text-slate-600 hover:text-[#007CA6] hover:bg-[#F0F9FC]'
+              }`}
+            >
+              <Home className="w-4 h-4 text-[#007CA6]" />
+              <span>{isAr ? 'الرئيسية' : 'Home'}</span>
+            </button>
+
             <button
               onClick={() => onTabChange('advisor')}
               className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
@@ -77,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <Sparkles className="w-4 h-4 text-[#F38B21]" />
-              <span>{isAr ? 'المستشار الذكي' : 'Smart Advisor'}</span>
+              <span>{isAr ? 'اختر سماعتك الطبية' : 'Choose Your Hearing Aid'}</span>
             </button>
 
             <button
@@ -183,12 +200,21 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Mobile Sub-Navigation Bar */}
         <div className="flex lg:hidden overflow-x-auto py-2.5 gap-2 border-t border-slate-100 scrollbar-none">
           <button
+            onClick={() => onTabChange('home')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap flex items-center gap-1 ${
+              activeTab === 'home' ? 'bg-[#007CA6] text-white font-bold' : 'text-slate-600 bg-slate-50'
+            }`}
+          >
+            <Home className="w-3.5 h-3.5" />
+            {isAr ? 'الرئيسية' : 'Home'}
+          </button>
+          <button
             onClick={() => onTabChange('advisor')}
             className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap ${
               activeTab === 'advisor' ? 'bg-sky-100 text-sky-900 font-bold' : 'text-slate-600 bg-slate-50'
             }`}
           >
-            {isAr ? 'المستشار الذكي' : 'Advisor'}
+            {isAr ? 'اختر سماعتك' : 'Choose Aid'}
           </button>
           <button
             onClick={() => onTabChange('devices')}
