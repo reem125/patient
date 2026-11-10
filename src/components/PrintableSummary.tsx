@@ -319,8 +319,8 @@ export const PrintableSummary: React.FC<PrintableSummaryProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="mt-8 pt-4 border-t border-slate-200 text-center text-[10px] text-slate-500">
-          <span>{isAr ? 'رؤية الطبية · الموزع والشريك المعتمد لسماعات هانزاتون (HANSATON) السويسرية' : 'Vision Medical · Authorized Partner for HANSATON Swiss Hearing Systems'}</span>
+        <div className="mt-8 pt-4 border-t border-slate-200 text-center text-[10px] text-slate-500 font-medium">
+          <span>{isAr ? 'رؤية الطبية وكيل وموزع معتمد لهانزاتون (HANSATON)' : 'Vision Medical — Authorized Agent & Distributor for HANSATON'}</span>
         </div>
 
       </div>

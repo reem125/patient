@@ -162,8 +162,8 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="text-xs text-sky-100 font-medium">
-                    {isAr ? 'الموزع المعتمد لسماعات هانزاتون السويسرية' : 'Authorized Partner for Swiss HANSATON Systems'}
+                  <div className="text-xs text-sky-100 font-semibold bg-white/10 px-3 py-1.5 rounded-full border border-white/15">
+                    {isAr ? 'رؤية الطبية وكيل وموزع معتمد لهانزاتون' : 'Vision Medical — Authorized Agent & Distributor for HANSATON'}
                   </div>
                 </div>
 
@@ -607,7 +607,7 @@ export default function App() {
                 className="h-5 w-auto object-contain"
               />
               <span className="text-slate-300">·</span>
-              <span>{isAr ? 'وكيل وموزع معتمد لسماعات هانزاتون السويسرية' : 'Authorized Partner for HANSATON Swiss Hearing Systems'}</span>
+              <span className="font-medium text-slate-700">{isAr ? 'رؤية الطبية وكيل وموزع معتمد لهانزاتون' : 'Vision Medical — Authorized Agent & Distributor for HANSATON'}</span>
             </div>
             <div>
               <span>{isAr ? 'جميع الحقوق محفوظة © 2026' : 'All Rights Reserved © 2026'}</span>

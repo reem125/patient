@@ -41,7 +41,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 *أبرز أسباب الاقتراح:*
 ${clinicalRationales.slice(0, 2).map((r, i) => `${i + 1}. ${r.ar}`).join('\n')}
 
-رؤية الطبية · الموزع المعتمد لسماعات HANSATON السويسرية
+رؤية الطبية وكيل وموزع معتمد لهانزاتون
 ${typeof window !== 'undefined' ? window.location.href : ''}`
     : `🏥 *Personalized Hearing Recommendation - Vision Medical & HANSATON*
 ━━━━━━━━━━━━━━━━━━━━
@@ -53,7 +53,7 @@ Recommended Device: *${primaryModel.name.en}* (${primaryModel.family} · ${prima
 *Clinical Highlights:*
 ${clinicalRationales.slice(0, 2).map((r, i) => `${i + 1}. ${r.en}`).join('\n')}
 
-Vision Medical · Authorized Partner for HANSATON Swiss Hearing Systems
+Vision Medical — Authorized Agent & Distributor for HANSATON
 ${typeof window !== 'undefined' ? window.location.href : ''}`;
 
   const emailSubject = isAr
@@ -185,8 +185,8 @@ ${typeof window !== 'undefined' ? window.location.href : ''}`;
         </div>
 
         {/* Footer info note */}
-        <div className="p-4 bg-slate-50 border-t border-slate-100 text-center text-[11px] text-slate-500">
-          <span>{isAr ? 'رؤية الطبية · الموزع المعتمد لسماعات HANSATON السويسرية' : 'Vision Medical · Authorized Partner for HANSATON Swiss Hearing Systems'}</span>
+        <div className="p-4 bg-slate-50 border-t border-slate-100 text-center text-[11px] text-slate-500 font-medium">
+          <span>{isAr ? 'رؤية الطبية وكيل وموزع معتمد لهانزاتون' : 'Vision Medical — Authorized Agent & Distributor for HANSATON'}</span>
         </div>
       </div>
     </div>

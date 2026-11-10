@@ -117,8 +117,8 @@ export const Header: React.FC<HeaderProps> = ({
                   referrerPolicy="no-referrer"
                 />
               </div>
-              <span className="hidden 2xl:inline text-[10px] font-bold text-[#007CA6] bg-[#E8F6FA] px-2 py-0.5 rounded-full border border-[#007CA6]/20">
-                {isAr ? 'شريك معتمد' : 'Authorized Partner'}
+              <span className="hidden 2xl:inline text-[10px] font-bold text-[#007CA6] bg-[#E8F6FA] px-2.5 py-0.5 rounded-full border border-[#007CA6]/25 whitespace-nowrap">
+                {isAr ? 'رؤية الطبية وكيل وموزع معتمد لهانزاتون' : 'Vision Medical — Authorized Agent & Distributor for HANSATON'}
               </span>
             </div>
           </button>
