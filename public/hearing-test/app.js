@@ -1,73 +1,51 @@
 'use strict';
 
 /* =====================================================================
- * CONFIGURATION — the only block audiologists / engineers need to edit.
- * Levels are attenuation in dB below full scale (0 = loudest).
+ * Vision Medical online hearing screener — user interface.
+ * Scoring lives in engine.js (HearingEngine). Edit CONFIG for the UI and
+ * HearingEngine.CONFIG for calibration, σ, regression and cut-offs.
  * ===================================================================== */
 const CONFIG = {
   bookingUrl: '/',            // "Book a hearing test" link — change to your booking / WhatsApp page
-  reportEmail: '',            // pre-filled recipient for "Email my result" (blank = user chooses)
+  guideUrl: '/',              // "Learn about hearing aids" link
+  paperUrl: 'https://doi.org/10.1177/23312165251317923',
 
-  levels: { min: 0, max: 80, step: 5, startFirst: 30, start: 40 },
+  // Attenuation in dB below digital full scale. PAPER: start at −50 dB FS, 5 dB steps,
+  // each next tone starts 15 dB louder than the previous threshold.
+  levels: { min: 10, max: 110, step: 5, start: 50, nextOffset: 15 },
+  tone: { burst: 0.4, fade: 0.03, gap: 0.25, bursts: 2, pause: 0.6 },
 
-  // Warble tone: carrier ±5 %, 8 Hz modulation, 3 × 250 ms bursts with 20 ms fades.
-  tone: { peakDbfs: -1, modDepth: 0.05, modRate: 8, burst: 0.25, fade: 0.02, gap: 0.25, bursts: 3, pause: 0.75 },
-
-  // Per-frequency offsets added when converting to dB HL (spec section 4).
-  offsets: {
-    iso:    { 500: -6, 1000: -4, 2000: 0, 4000: 3, 6000: -7 },
-    maxSpl: { 500: 0, 1000: 0, 2000: -5, 4000: -3, 6000: -2 },
-    noise:  { 500: 0, 1000: 0, 2000: 0, 4000: 0, 6000: 0 },
-    // PLACEHOLDERS — replace with values measured on a coupler / artificial ear.
-    system:     { generic: { 500: 80, 1000: 80, 2000: 80, 4000: 80, 6000: 80, 8000: 80 } },
-    headphones: { inEar: {}, onEar: {} },
-    connection: { wired: {}, wireless: {} },
-    volume:     { generic: {} },
-  },
-  calibrated: false,
-
-  scoring: {
-    goodMax: 25, fairMax: 40,      // worse-ear average, dB HL
-    asymmetry: 15,                 // dB difference between ears at any frequency
-    retestTolerance: 10,           // dB difference allowed on the repeated tone
-    fastMs: 2000,                  // flag thresholds set this fast with no presses
-    notHeardPenalty: 5,            // "not heard" = loudest level + 5 dB
-    questionnaire: { noMax: 3, maybeMax: 7 },
-  },
-
-  roomNoisyDbfs: -50,             // uncalibrated mic level above which the room counts as noisy
+  askAsymmetryTone: true,     // extra left 4 kHz tone to catch one-sided loss
+  micSeconds: 10,
+  roomNoisyDbfs: -50,         // uncalibrated mic level above which the room counts as noisy
+  fastMs: 2000,               // a tone set this fast with no +/- presses counts as rushed
 };
 
-const FREQS = [500, 1000, 2000, 4000];
-
-// Inside an embedded viewer (e.g. a shared preview link) the microphone, printing, downloads and
-// mailto: links are blocked, so those features switch to copy-to-clipboard.
 const EMBEDDED = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
 
-// Right ear first; first tone of each ear starts loud. Last tone repeats the first as a reliability check.
+// PAPER: right 2 kHz -> right 4 kHz -> left 1 kHz -> left 6 kHz.
 const SEQUENCE = [
-  { ear: 'right', freq: 1000, first: true },
   { ear: 'right', freq: 2000 },
   { ear: 'right', freq: 4000 },
-  { ear: 'right', freq: 500 },
-  { ear: 'left', freq: 1000, first: true },
-  { ear: 'left', freq: 2000 },
-  { ear: 'left', freq: 4000 },
-  { ear: 'left', freq: 500 },
-  { ear: 'right', freq: 1000, retest: true },
+  { ear: 'left', freq: 1000 },
+  { ear: 'left', freq: 6000 },
+  ...(CONFIG.askAsymmetryTone ? [{ ear: 'left', freq: 4000, extra: true }] : []),
 ];
 
 const AGES = [
   ['RANGE_18_29', '18–29'], ['RANGE_30_39', '30–39'], ['RANGE_40_49', '40–49'], ['RANGE_50_59', '50–59'],
   ['RANGE_60_69', '60–69'], ['RANGE_70_79', '70–79'], ['RANGE_80_89', '80–89'], ['RANGE_90_PLUS', '90+'],
 ];
-const FREQUENCY_ANSWERS = [['ALWAYS', 'always', 4], ['OFTEN', 'often', 3], ['SOMETIMES', 'sometimes', 2], ['RARELY', 'rarely', 1], ['NEVER', 'never', 0]];
+const FREQUENCY_ANSWERS = [['ALWAYS', 'always'], ['OFTEN', 'often'], ['SOMETIMES', 'sometimes'], ['RARELY', 'rarely'], ['NEVER', 'never']];
+// [storage key, paper item, question text key, short label key]
 const LISTENING = [
-  ['hardTimeHearingOthers', 'q1', 'q1Short'],
-  ['loudEnoughButMumbled', 'q2', 'q2Short'],
-  ['birdsChirping', 'q3', 'q3Short'],
-  ['noisyEnvironment', 'q4', 'q4Short'],
+  ['hardTimeHearingOthers', 'q3', 'q3', 'q3Short'],
+  ['loudEnoughButMumbled', 'q4', 'q4', 'q4Short'],
+  ['birdsChirping', 'q5', 'q5', 'q5Short'],
+  ['noisyEnvironment', 'q6', 'q6', 'q6Short'],
 ];
+const NOISE_RATINGS = [['VERY_SOFT', 'noiseVerySoft'], ['SOFT', 'noiseSoft'], ['MODERATE', 'noiseModerate'], ['LOUD', 'noiseLoud']];
+const OUT_FREQS = [500, 1000, 2000, 4000, 6000, 8000];
 
 /* =====================================================================
  * TEXT (English / Arabic)
@@ -81,100 +59,110 @@ const I18N = {
     back: 'Back', next: 'Next', continue: 'Continue',
 
     welcomeEyebrow: 'Online hearing screening',
-    welcomeTitle: 'Check your hearing in about 5 minutes',
-    welcomeBody: 'Answer a few short questions, then listen to tones through your headphones. You will get a simple result and advice on what to do next.',
-    needHeadphones: 'Headphones or earphones',
+    welcomeTitle: 'Check your hearing in about 4 minutes',
+    welcomeBody: 'Answer a few short questions, then find the softest tone you can hear in each ear. You will get an estimate of your hearing and advice on what to do next.',
+    needHeadphones: 'Wired headphones or earphones',
     needQuiet: 'A quiet room',
-    needTime: 'About 5 minutes',
+    needTime: 'About 4 minutes',
     disclaimer: 'This screening does not replace a hearing test by a professional and is not a diagnosis. It is intended for adults aged 18 and over. If you are worried about your hearing, please see a hearing care professional.',
     consent: 'I understand this is a screening, and I agree that my answers are used to calculate my result.',
     start: 'Start the check',
 
     aboutYou: 'About you',
     dailyLife: 'Your hearing in daily life',
-    yourHeadphones: 'Your headphones',
     ageQ: 'What is your age range?',
     selfQ: 'How would you describe your hearing?',
     good: 'Good', poor: 'Poor', notSure: 'Not sure',
     always: 'Always', often: 'Often', sometimes: 'Sometimes', rarely: 'Rarely', never: 'Never',
-    q1: 'In a one-on-one conversation, do you struggle to follow what is said, or feel that people mumble?',
-    q2: 'Is it difficult for you to understand people on the phone?',
-    q3: 'Do high-pitched sounds, such as birds singing, seem hard to hear?',
-    q4: 'Do you struggle to follow conversations in noisy places like restaurants or gatherings?',
-    q1Short: 'One-on-one conversations', q2Short: 'Phone calls', q3Short: 'High-pitched sounds', q4Short: 'Noisy places',
+    q3: 'In a one-on-one conversation, do you struggle to follow what is said, or feel that people mumble?',
+    q4: 'Is it difficult for you to have a conversation on the phone?',
+    q5: 'Do high-pitched sounds, such as birds singing, seem hard to hear?',
+    q6: 'Do you struggle to follow conversations in noisy places like busy restaurants?',
+    q3Short: 'One-on-one conversations', q4Short: 'Phone calls', q5Short: 'High-pitched sounds', q6Short: 'Noisy places',
     questionOf: 'Question {n} of 4',
-    phonesQ: 'What kind of headphones are you using?',
-    inEar: 'In-ear (earbuds)', onEar: 'On-ear or over-ear',
-    connQ: 'How are they connected?',
-    wired: 'With a cable', wireless: 'Wireless (Bluetooth)',
 
     setupEyebrow: 'Before you start',
     setupTitle: 'Prepare your device',
-    setup1: '<b>Set your device volume to 50%</b> and do not change it during the check.',
-    setup2: '<b>Go to a quiet room</b> and put away anything that makes noise.',
+    setup1: '<b>Plug in wired headphones</b> and put them on: the right side on your right ear.',
+    setup2: '<b>Set your device volume to 100%</b> and do not change it during the check.',
     setup3: '<b>Turn off noise cancelling</b> and any sound enhancement or equaliser.',
-    setup4: '<b>Check your headphones are on the right ears</b> with the buttons below.',
+    setup4: '<b>Check the sides</b> with the buttons below.',
     playLeft: 'Left ear', playRight: 'Right ear',
     channelHint: 'You should hear the tone only in the ear shown on the button. If not, swap the sides of your headphones.',
     ready: "I'm ready",
 
-    roomEyebrow: 'Optional',
-    roomTitle: 'Is your room quiet enough?',
-    roomBody: 'We can use your microphone for 5 seconds to check the background noise. Nothing is recorded or sent.',
-    roomCheck: 'Check my room', roomSkip: 'Skip this step',
-    roomListening: 'Listening… please stay quiet.',
-    roomQuiet: 'Your room seems quiet enough.',
-    roomNoisy: 'Your room seems noisy. For a reliable result, try to find a quieter place.',
-    roomDenied: 'The microphone is not available. You can continue without this check.',
+    quietEyebrow: 'Your surroundings',
+    quietTitle: 'Is your room quiet enough?',
+    micBody: 'We listen through your microphone for {s} seconds to check the background noise. Nothing is recorded or sent.',
+    micStart: 'Measure background noise',
+    micAgain: 'Measure again',
+    micListening: 'Measuring… please stay silent.',
+    micQuiet: 'Your room is quiet enough.',
+    micNoisy: 'Your room seems noisy. Try to find a quieter place, then measure again.',
+    micDenied: 'The microphone is not available. Answer the question below to continue.',
+    noiseQ: 'How loud is the background noise right now?',
+    noiseVerySoft: 'Very soft', noiseSoft: 'Soft', noiseModerate: 'Moderate', noiseLoud: 'Loud',
 
     toneOf: 'Tone {n} of {total}',
     earRight: 'Right ear', earLeft: 'Left ear',
     hz: 'Hz',
-    firstHint: 'This first tone starts loud so you can check your headphones and learn the controls.',
-    retestHint: 'Last tone: we repeat the first tone to check that your result is consistent.',
-    instr1: 'Press <b>play</b> to start the tone.',
-    instr2: 'Use <b>−</b> and <b>+</b> to change the volume until you can <b>only just</b> hear the tone. Then press <b>Next</b>.',
-    play: 'Play tone', stop: 'Stop tone', playing: 'Playing…',
+    firstHint: 'The first tone starts quiet. Press + until you hear it, then turn it down until you can only just hear it.',
+    extraHint: 'One extra tone: it helps us notice if one ear hears differently from the other.',
+    instr: 'Press <b>play</b> to start the tone. Use <b>−</b> and <b>+</b> to find the <b>softest</b> sound you can still hear. Then press <b>Next</b>.',
+    play: 'Play tone', stop: 'Pause tone', playing: 'Playing…',
     louder: 'Louder', quieter: 'Quieter',
-    maxReached: 'Maximum volume reached',
-    minReached: 'Minimum volume reached',
-    notHeard: "I didn't hear anything",
-    tryAgain: 'Try again',
+    maxReached: 'This is the loudest level',
+    minReached: 'This is the softest level',
+    notHeard: "I can't hear it at any level",
+    tryAgain: 'Start this tone again',
     nextTone: 'Next',
     playFirst: 'Play the tone first',
 
+    safetyEyebrow: 'Almost done',
+    safetyTitle: 'Turn your volume back down',
+    safetyBody: 'You set your device to 100% for the check. Please lower it to your usual level now, before you play anything else.',
+    showResults: 'Show my result',
+
     resultsEyebrow: 'Your result',
-    resultsTitle: 'Here is your hearing screening result',
     GOOD_title: 'Your hearing appears to be in the normal range',
-    GOOD_body: 'At the tones we tested, your hearing seems fine. A regular hearing check every few years is still a good idea.',
-    FAIR_title: 'You may have a mild hearing loss',
-    FAIR_body: 'We recommend a full hearing test with a professional to find out more.',
-    POOR_title: 'You are likely to have a hearing loss',
-    POOR_body: 'We recommend booking a hearing test soon. Many types of hearing loss can be treated or helped.',
+    GOOD_short: 'At the tones we tested, your hearing seems fine.',
+    GOOD_mean: 'People with this result usually follow conversations without difficulty in everyday situations.',
+    GOOD_next: 'Hearing can change over time. Take this check again in a year or two, and see a hearing care professional sooner if you notice changes.',
+    FAIR_title: 'Your result is borderline',
+    FAIR_short: 'You may have the beginning of a hearing loss.',
+    FAIR_mean: 'People with this result can miss some soft or high-pitched sounds, especially in noisy places.',
+    FAIR_next: 'We recommend a full hearing test with a professional to find out more. Protect your hearing from loud noise in the meantime.',
+    POOR_title: 'You may have a hearing loss',
+    POOR_short: 'The screening suggests your hearing is below the normal range.',
+    POOR_mean: 'People with this result often find conversations hard to follow, on the phone, in groups and in noisy places.',
+    POOR_next: 'This screening is not a substitute for a professional hearing test. Please book a full hearing assessment: many types of hearing loss can be treated or helped.',
     INCONCLUSIVE_title: 'We could not get a reliable result',
-    INCONCLUSIVE_body: 'Your answers were inconsistent or given very quickly. Please check your headphones and your room, then take the check again.',
-    scaleGood: 'Good', scaleFair: 'Fair', scalePoor: 'Poor',
-    asymNote: 'There is a clear difference between your two ears. We recommend a hearing test with a professional.',
-    mismatchNote: 'You told us you notice hearing difficulties in daily life. Even with a good tone result, a full hearing test is recommended.',
-    uncalNote: 'Your device has not been calibrated, so these values are an estimate.',
-    earsTitle: 'Your hearing levels',
-    average: 'average',
-    dbhl: 'dB HL',
-    audiogramY: 'Hearing level (dB HL)',
-    audiogramX: 'Frequency (Hz)',
-    normalRange: 'Normal range',
-    answersTitle: 'What you told us',
-    qResult: 'Questionnaire',
-    qNO: 'No reported difficulty', qMAYBE: 'Some reported difficulty', qYES: 'Reported difficulty',
+    INCONCLUSIVE_short: 'Something during the check made the result unreliable.',
+    INCONCLUSIVE_mean: 'Background noise, a rushed answer or a headphone problem can all change the tones you hear.',
+    INCONCLUSIVE_next: 'Find a quiet room, check your wired headphones, set the volume to 100% and take the check again.',
+    reasonNOISE: 'Your room was too noisy for a reliable result.',
+    reasonTOO_FAST: 'Most tones were answered very quickly without adjusting the volume.',
+    asymNote: 'Your two ears heard the 4,000 Hz tone quite differently. A difference between ears should always be checked by a professional.',
+    mismatchNote: 'You told us you notice hearing difficulties in daily life. Even with this result, a full hearing test is a good idea.',
+    uncalNote: 'This check has not been calibrated for your headphones yet, so the values are estimates.',
+    whatMeans: 'What does this mean?',
+    nextSteps: 'Next steps',
     book: 'Book a hearing test',
-    email: 'Email my result',
-    print: 'Print or save as PDF',
-    download: 'Download data (JSON)',
-    retake: 'Take the check again',
+    learn: 'Learn about hearing aids',
+    retake: 'Do the test again',
+    detailed: 'Detailed results',
+    detailTitle: 'Your estimated hearing levels',
+    estimateOnly: 'Estimates only, not a clinical audiogram.',
+    method: 'Method: Vercammen & Strelcyk (2025), Trends in Hearing.',
+    bandGOOD: 'Good', bandMILD: 'Mild', bandMODERATE: 'Moderate', bandSEVERE: 'Severe',
+    dbhl: 'dB HL',
+    freqCol: 'Frequency',
+    answersTitle: 'What you told us',
+    print: 'Save as PDF',
     copyResult: 'Copy my result', copyData: 'Copy data (JSON)', copied: 'Copied',
     copyManual: 'Copying is blocked here. Select the text below and copy it.',
-    emailSubject: 'My hearing screening result',
-    notHeardShort: 'not heard',
+    download: 'Download data (JSON)',
+    close: 'Close',
   },
 
   ar: {
@@ -185,100 +173,110 @@ const I18N = {
     back: 'رجوع', next: 'التالي', continue: 'متابعة',
 
     welcomeEyebrow: 'فحص سمع مبدئي عبر الإنترنت',
-    welcomeTitle: 'افحص سمعك في حوالي 5 دقائق',
-    welcomeBody: 'أجب عن بعض الأسئلة القصيرة، ثم استمع إلى نغمات عبر سماعاتك. ستحصل على نتيجة مبسطة ونصائح حول الخطوة التالية.',
-    needHeadphones: 'سماعات رأس أو سماعات أذن',
+    welcomeTitle: 'افحص سمعك في حوالي 4 دقائق',
+    welcomeBody: 'أجب عن بعض الأسئلة القصيرة، ثم حدّد أخفض نغمة تستطيع سماعها في كل أذن. ستحصل على تقدير لمستوى سمعك ونصائح حول الخطوة التالية.',
+    needHeadphones: 'سماعات رأس أو أذن سلكية',
     needQuiet: 'غرفة هادئة',
-    needTime: 'حوالي 5 دقائق',
+    needTime: 'حوالي 4 دقائق',
     disclaimer: 'لا يغني هذا الفحص عن فحص السمع لدى أخصائي، ولا يُعد تشخيصًا طبيًا. وهو مخصص للبالغين من عمر 18 عامًا فأكثر. إذا كانت لديك مخاوف بشأن سمعك، يُرجى مراجعة أخصائي سمع.',
     consent: 'أفهم أن هذا فحص مبدئي، وأوافق على استخدام إجاباتي لحساب نتيجتي.',
     start: 'ابدأ الفحص',
 
     aboutYou: 'معلومات عنك',
     dailyLife: 'سمعك في حياتك اليومية',
-    yourHeadphones: 'سماعاتك',
     ageQ: 'ما فئتك العمرية؟',
     selfQ: 'كيف تصف سمعك؟',
     good: 'جيد', poor: 'ضعيف', notSure: 'لست متأكدًا',
     always: 'دائمًا', often: 'غالبًا', sometimes: 'أحيانًا', rarely: 'نادرًا', never: 'أبدًا',
-    q1: 'في المحادثة مع شخص واحد، هل تجد صعوبة في متابعة الكلام، أو تشعر أن الآخرين يتمتمون؟',
-    q2: 'هل تجد صعوبة في فهم الآخرين عبر الهاتف؟',
-    q3: 'هل يصعب عليك سماع الأصوات الحادة مثل زقزقة العصافير؟',
-    q4: 'هل تجد صعوبة في متابعة الأحاديث في الأماكن المزدحمة مثل المطاعم أو التجمعات؟',
-    q1Short: 'المحادثات الفردية', q2Short: 'المكالمات الهاتفية', q3Short: 'الأصوات الحادة', q4Short: 'الأماكن المزدحمة',
+    q3: 'في المحادثة مع شخص واحد، هل تجد صعوبة في متابعة الكلام، أو تشعر أن الآخرين يتمتمون؟',
+    q4: 'هل تجد صعوبة في إجراء محادثة عبر الهاتف؟',
+    q5: 'هل يصعب عليك سماع الأصوات الحادة مثل زقزقة العصافير؟',
+    q6: 'هل تجد صعوبة في متابعة الأحاديث في الأماكن المزدحمة مثل المطاعم؟',
+    q3Short: 'المحادثات الفردية', q4Short: 'المكالمات الهاتفية', q5Short: 'الأصوات الحادة', q6Short: 'الأماكن المزدحمة',
     questionOf: 'السؤال {n} من 4',
-    phonesQ: 'ما نوع السماعات التي تستخدمها؟',
-    inEar: 'داخل الأذن', onEar: 'فوق الأذن أو حولها',
-    connQ: 'كيف تتصل السماعات بجهازك؟',
-    wired: 'بسلك', wireless: 'لاسلكي (بلوتوث)',
 
     setupEyebrow: 'قبل أن تبدأ',
     setupTitle: 'جهّز جهازك',
-    setup1: '<b>اضبط مستوى صوت جهازك على 50%</b> ولا تغيّره أثناء الفحص.',
-    setup2: '<b>انتقل إلى غرفة هادئة</b> وأبعد أي مصدر للضوضاء.',
+    setup1: '<b>صِل سماعات سلكية</b> وضعها على أذنيك: الجهة اليمنى على أذنك اليمنى.',
+    setup2: '<b>اضبط مستوى صوت جهازك على 100%</b> ولا تغيّره أثناء الفحص.',
     setup3: '<b>أوقف خاصية إلغاء الضوضاء</b> وأي تحسينات أو معادل للصوت.',
-    setup4: '<b>تأكد من وضع كل سماعة على الأذن الصحيحة</b> باستخدام الزرين أدناه.',
+    setup4: '<b>تحقّق من الجهتين</b> باستخدام الزرين أدناه.',
     playLeft: 'الأذن اليسرى', playRight: 'الأذن اليمنى',
     channelHint: 'يجب أن تسمع النغمة في الأذن المذكورة على الزر فقط. إن لم يحدث ذلك، بدّل جهتي السماعتين.',
     ready: 'أنا جاهز',
 
-    roomEyebrow: 'اختياري',
-    roomTitle: 'هل غرفتك هادئة بما يكفي؟',
-    roomBody: 'يمكننا استخدام الميكروفون لمدة 5 ثوانٍ لقياس الضوضاء المحيطة. لا يتم تسجيل أو إرسال أي شيء.',
-    roomCheck: 'افحص غرفتي', roomSkip: 'تخطَّ هذه الخطوة',
-    roomListening: 'جارٍ الاستماع… يُرجى التزام الهدوء.',
-    roomQuiet: 'تبدو غرفتك هادئة بما يكفي.',
-    roomNoisy: 'تبدو غرفتك صاخبة. للحصول على نتيجة موثوقة، حاول الانتقال إلى مكان أهدأ.',
-    roomDenied: 'الميكروفون غير متاح. يمكنك المتابعة دون هذا الفحص.',
+    quietEyebrow: 'المكان من حولك',
+    quietTitle: 'هل غرفتك هادئة بما يكفي؟',
+    micBody: 'نستمع عبر الميكروفون لمدة {s} ثوانٍ لقياس الضوضاء المحيطة. لا يتم تسجيل أو إرسال أي شيء.',
+    micStart: 'قِس الضوضاء المحيطة',
+    micAgain: 'قِس مرة أخرى',
+    micListening: 'جارٍ القياس… يُرجى التزام الصمت.',
+    micQuiet: 'غرفتك هادئة بما يكفي.',
+    micNoisy: 'تبدو غرفتك صاخبة. حاول الانتقال إلى مكان أهدأ ثم أعد القياس.',
+    micDenied: 'الميكروفون غير متاح. أجب عن السؤال أدناه للمتابعة.',
+    noiseQ: 'ما مستوى الضوضاء المحيطة بك الآن؟',
+    noiseVerySoft: 'منخفضة جدًا', noiseSoft: 'منخفضة', noiseModerate: 'متوسطة', noiseLoud: 'مرتفعة',
 
     toneOf: 'النغمة {n} من {total}',
     earRight: 'الأذن اليمنى', earLeft: 'الأذن اليسرى',
     hz: 'هرتز',
-    firstHint: 'تبدأ هذه النغمة الأولى بصوت مرتفع لتتأكد من عمل السماعات وتتعرف على أزرار التحكم.',
-    retestHint: 'النغمة الأخيرة: نعيد النغمة الأولى للتأكد من ثبات نتيجتك.',
-    instr1: 'اضغط <b>تشغيل</b> لبدء النغمة.',
-    instr2: 'استخدم <b>−</b> و<b>+</b> لتغيير مستوى الصوت حتى <b>تسمع النغمة بالكاد</b>، ثم اضغط <b>التالي</b>.',
-    play: 'تشغيل النغمة', stop: 'إيقاف النغمة', playing: 'جارٍ التشغيل…',
+    firstHint: 'تبدأ النغمة الأولى بصوت منخفض. اضغط + حتى تسمعها، ثم اخفض الصوت حتى تسمعها بالكاد.',
+    extraHint: 'نغمة إضافية: تساعدنا على ملاحظة ما إذا كانت إحدى أذنيك تسمع بشكل مختلف عن الأخرى.',
+    instr: 'اضغط <b>تشغيل</b> لبدء النغمة. استخدم <b>−</b> و<b>+</b> للوصول إلى <b>أخفض</b> صوت ما زلت تسمعه، ثم اضغط <b>التالي</b>.',
+    play: 'تشغيل النغمة', stop: 'إيقاف مؤقت', playing: 'جارٍ التشغيل…',
     louder: 'أعلى', quieter: 'أخفض',
-    maxReached: 'وصلت إلى أعلى مستوى للصوت',
-    minReached: 'وصلت إلى أدنى مستوى للصوت',
-    notHeard: 'لم أسمع شيئًا',
-    tryAgain: 'أعد المحاولة',
+    maxReached: 'هذا أعلى مستوى للصوت',
+    minReached: 'هذا أخفض مستوى للصوت',
+    notHeard: 'لا أسمعها في أي مستوى',
+    tryAgain: 'ابدأ هذه النغمة من جديد',
     nextTone: 'التالي',
     playFirst: 'شغّل النغمة أولًا',
 
+    safetyEyebrow: 'أوشكت على الانتهاء',
+    safetyTitle: 'أعِد مستوى الصوت إلى وضعه المعتاد',
+    safetyBody: 'ضبطت جهازك على 100% من أجل الفحص. يُرجى خفض الصوت الآن إلى مستواك المعتاد قبل تشغيل أي شيء آخر.',
+    showResults: 'اعرض نتيجتي',
+
     resultsEyebrow: 'نتيجتك',
-    resultsTitle: 'هذه نتيجة فحص سمعك المبدئي',
     GOOD_title: 'يبدو أن سمعك ضمن المعدل الطبيعي',
-    GOOD_body: 'في النغمات التي اختبرناها، يبدو سمعك جيدًا. ومع ذلك يُنصح بإجراء فحص دوري للسمع كل بضع سنوات.',
-    FAIR_title: 'قد يكون لديك ضعف سمع بسيط',
-    FAIR_body: 'ننصحك بإجراء فحص سمع شامل لدى أخصائي لمعرفة المزيد.',
-    POOR_title: 'من المرجح أن لديك ضعفًا في السمع',
-    POOR_body: 'ننصحك بحجز موعد لفحص السمع قريبًا. يمكن علاج كثير من أنواع ضعف السمع أو التخفيف منها.',
+    GOOD_short: 'في النغمات التي اختبرناها، يبدو سمعك جيدًا.',
+    GOOD_mean: 'عادةً ما يتابع أصحاب هذه النتيجة المحادثات دون صعوبة في المواقف اليومية.',
+    GOOD_next: 'قد يتغيّر السمع مع الوقت. أعد هذا الفحص بعد عام أو عامين، وراجع أخصائي سمع في وقت أقرب إذا لاحظت أي تغيّر.',
+    FAIR_title: 'نتيجتك على الحد الفاصل',
+    FAIR_short: 'قد تكون لديك بداية ضعف في السمع.',
+    FAIR_mean: 'قد يفوت أصحاب هذه النتيجة بعض الأصوات المنخفضة أو الحادة، خاصة في الأماكن الصاخبة.',
+    FAIR_next: 'ننصحك بإجراء فحص سمع شامل لدى أخصائي لمعرفة المزيد، وبحماية سمعك من الضوضاء العالية في الأثناء.',
+    POOR_title: 'قد يكون لديك ضعف في السمع',
+    POOR_short: 'تشير نتيجة الفحص إلى أن سمعك أقل من المعدل الطبيعي.',
+    POOR_mean: 'غالبًا ما يجد أصحاب هذه النتيجة صعوبة في متابعة المحادثات، عبر الهاتف وفي المجموعات وفي الأماكن الصاخبة.',
+    POOR_next: 'هذا الفحص لا يغني عن فحص السمع لدى أخصائي. يُرجى حجز تقييم شامل للسمع، فكثير من أنواع ضعف السمع يمكن علاجها أو التخفيف منها.',
     INCONCLUSIVE_title: 'لم نتمكن من الحصول على نتيجة موثوقة',
-    INCONCLUSIVE_body: 'كانت إجاباتك غير متسقة أو سريعة جدًا. يُرجى التحقق من السماعات والغرفة ثم إعادة الفحص.',
-    scaleGood: 'جيد', scaleFair: 'متوسط', scalePoor: 'ضعيف',
-    asymNote: 'يوجد فرق واضح بين أذنيك. ننصحك بإجراء فحص سمع لدى أخصائي.',
-    mismatchNote: 'ذكرت أنك تلاحظ صعوبات في السمع في حياتك اليومية. حتى مع نتيجة جيدة للنغمات، يُنصح بإجراء فحص سمع شامل.',
-    uncalNote: 'لم تتم معايرة جهازك، لذا فهذه القيم تقديرية.',
-    earsTitle: 'مستويات سمعك',
-    average: 'المتوسط',
-    dbhl: 'ديسيبل',
-    audiogramY: 'مستوى السمع (ديسيبل)',
-    audiogramX: 'التردد (هرتز)',
-    normalRange: 'المعدل الطبيعي',
-    answersTitle: 'ما أخبرتنا به',
-    qResult: 'الاستبيان',
-    qNO: 'لا توجد صعوبات مذكورة', qMAYBE: 'بعض الصعوبات المذكورة', qYES: 'صعوبات مذكورة',
+    INCONCLUSIVE_short: 'حدث أمر أثناء الفحص جعل النتيجة غير موثوقة.',
+    INCONCLUSIVE_mean: 'قد تؤثر الضوضاء المحيطة أو الإجابة السريعة أو مشكلة في السماعات على النغمات التي تسمعها.',
+    INCONCLUSIVE_next: 'انتقل إلى غرفة هادئة، وتحقّق من السماعات السلكية، واضبط الصوت على 100%، ثم أعد الفحص.',
+    reasonNOISE: 'كانت غرفتك صاخبة جدًا للحصول على نتيجة موثوقة.',
+    reasonTOO_FAST: 'تمت الإجابة على معظم النغمات بسرعة كبيرة دون تعديل مستوى الصوت.',
+    asymNote: 'سمعت أذناك نغمة 4000 هرتز بشكل مختلف بوضوح. يجب أن يفحص أخصائي أي اختلاف بين الأذنين.',
+    mismatchNote: 'ذكرت أنك تلاحظ صعوبات في السمع في حياتك اليومية. حتى مع هذه النتيجة، يُستحسن إجراء فحص سمع شامل.',
+    uncalNote: 'لم تتم معايرة هذا الفحص لسماعاتك بعد، لذا فالقيم تقديرية.',
+    whatMeans: 'ماذا تعني هذه النتيجة؟',
+    nextSteps: 'الخطوات التالية',
     book: 'احجز فحص سمع',
-    email: 'أرسل نتيجتي بالبريد',
-    print: 'طباعة أو حفظ PDF',
-    download: 'تنزيل البيانات (JSON)',
+    learn: 'تعرّف على السماعات',
     retake: 'أعد الفحص',
+    detailed: 'النتائج التفصيلية',
+    detailTitle: 'مستويات سمعك التقديرية',
+    estimateOnly: 'قيم تقديرية فقط، وليست مخطط سمع سريريًا.',
+    method: 'المنهجية: Vercammen & Strelcyk (2025)، مجلة Trends in Hearing.',
+    bandGOOD: 'جيد', bandMILD: 'بسيط', bandMODERATE: 'متوسط', bandSEVERE: 'شديد',
+    dbhl: 'ديسيبل',
+    freqCol: 'التردد',
+    answersTitle: 'ما أخبرتنا به',
+    print: 'حفظ PDF',
     copyResult: 'انسخ نتيجتي', copyData: 'انسخ البيانات (JSON)', copied: 'تم النسخ',
     copyManual: 'النسخ غير متاح هنا. حدّد النص أدناه وانسخه.',
-    emailSubject: 'نتيجة فحص سمعي المبدئي',
-    notHeardShort: 'لم تُسمع',
+    download: 'تنزيل البيانات (JSON)',
+    close: 'إغلاق',
   },
 };
 
@@ -288,7 +286,7 @@ const I18N = {
 const $ = (sel, root = document) => root.querySelector(sel);
 const app = $('#app');
 
-let lang = 'en';
+let lang = 'ar';
 const urlLang = new URLSearchParams(location.search).get('lang');
 if (urlLang === 'ar' || urlLang === 'en') lang = urlLang;
 else try { lang = localStorage.getItem('hc-lang') || 'ar'; } catch (e) { /* storage blocked */ }
@@ -300,17 +298,19 @@ function t(key, vars) {
 }
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'hc-' + Date.now().toString(36) + Math.random().toString(36).slice(2));
+const earKey = (ear) => (ear === 'right' ? 'RIGHT' : 'LEFT');
 
 const ICONS = {
   headphones: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z"/></svg>',
   quiet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m23 9-6 6M17 9l6 6"/></svg>',
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  volume: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M19 12h-6"/></svg>',
   play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>',
-  stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>',
 };
 
 /* =====================================================================
- * TONE ENGINE — warble tone generated live with the Web Audio API
+ * TONE ENGINE — pulsed pure tone, Web Audio API
  * ===================================================================== */
 const Tone = {
   ctx: null, nodes: null, timer: 0,
@@ -321,7 +321,8 @@ const Tone = {
     return this.ctx;
   },
 
-  gainFor(att) { return Math.pow(10, (CONFIG.tone.peakDbfs - att) / 20); },
+  // Level in dB re full scale = −attenuation; a sine at amplitude 1 is full scale.
+  gainFor(att) { return Math.pow(10, -att / 20); },
 
   start(freq, ear, att) {
     this.stop();
@@ -330,12 +331,6 @@ const Tone = {
 
     const osc = ctx.createOscillator();
     osc.frequency.value = freq;
-    const lfo = ctx.createOscillator();
-    lfo.frequency.value = c.modRate;
-    const depth = ctx.createGain();
-    depth.gain.value = freq * c.modDepth;
-    lfo.connect(depth).connect(osc.frequency);
-
     const env = ctx.createGain();
     env.gain.value = 0;
     const level = ctx.createGain();
@@ -347,12 +342,11 @@ const Tone = {
 
     const t0 = ctx.currentTime + 0.05;
     osc.start(t0);
-    lfo.start(t0);
 
     const cycle = c.bursts * (c.burst + c.gap) + c.pause;
     let next = t0;
     const schedule = () => {
-      while (next < ctx.currentTime + 0.5) {
+      while (next < ctx.currentTime + 0.6) {
         for (let b = 0; b < c.bursts; b++) {
           const s = next + b * (c.burst + c.gap);
           env.gain.setValueAtTime(0, s);
@@ -365,7 +359,7 @@ const Tone = {
     };
     schedule();
     this.timer = setInterval(schedule, 100);
-    this.nodes = { osc, lfo, env, level, merger };
+    this.nodes = { osc, env, level, merger };
   },
 
   setLevel(att) {
@@ -383,13 +377,12 @@ const Tone = {
     if (g.cancelAndHoldAtTime) g.cancelAndHoldAtTime(now); else g.cancelScheduledValues(now);
     g.setTargetAtTime(0, now, 0.01);
     n.osc.stop(now + 0.1);
-    n.lfo.stop(now + 0.1);
     n.osc.onended = () => n.merger.disconnect();
   },
 };
 
 /* =====================================================================
- * ROOM CHECK — 5 s microphone level (uncalibrated, indicative only)
+ * ROOM CHECK — microphone level (uncalibrated, indicative only)
  * ===================================================================== */
 const RoomCheck = {
   stream: null, raf: 0, src: null,
@@ -409,13 +402,14 @@ const RoomCheck = {
     const buf = new Float32Array(an.fftSize);
     const samples = [];
     const t0 = performance.now();
+    const dur = CONFIG.micSeconds * 1000;
     const tick = () => {
       an.getFloatTimeDomainData(buf);
       let sum = 0;
       for (const v of buf) sum += v * v;
       const db = 10 * Math.log10(sum / buf.length + 1e-12);
       samples.push(db);
-      const p = (performance.now() - t0) / 5000;
+      const p = (performance.now() - t0) / dur;
       onLevel(db, p);
       if (p < 1) { this.raf = requestAnimationFrame(tick); return; }
       this.stop();
@@ -435,14 +429,15 @@ const RoomCheck = {
 /* =====================================================================
  * STATE & FLOW
  * ===================================================================== */
-const SCREENS = ['welcome', 'age', 'self', 'q0', 'q1', 'q2', 'q3', 'phones', 'conn', 'setup', ...(EMBEDDED ? [] : ['room']),
-  ...SEQUENCE.map((_, i) => 'tone' + i), 'results'];
+const SCREENS = ['welcome', 'age', 'self', 'q0', 'q1', 'q2', 'q3', 'setup', 'quiet',
+  ...SEQUENCE.map((_, i) => 'tone' + i), 'safety', 'results'];
 
 let state;
 let screenEnteredAt = 0;
-let tone = null;          // live state of the current tone screen
-let channelTimer = 0;     // setup-screen channel check
-let room = null;          // room-check UI state
+let tone = null;
+let channelTimer = 0;
+let mic = null;
+let detailsOpen = false;
 
 function newState() {
   return {
@@ -455,9 +450,15 @@ function newState() {
     consent: false,
     answers: {},
     answerTimesMs: {},
-    device: { userAgent: navigator.userAgent, platform: navigator.platform || '' },
-    room: null,
-    measurements: {},
+    system: {
+      phones: 'WIRED_HEADPHONES',
+      userAgent: navigator.userAgent,
+      platform: navigator.platform || '',
+      mobile: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent),
+      volumeInstruction: 100,
+    },
+    environment: { micMedianDbfs: null, micStatus: null, selfRating: null, noiseMasked: false },
+    measurements: { RIGHT: {}, LEFT: {}, BOTH: {} },
     screenTimesMs: {},
     results: null,
   };
@@ -473,21 +474,29 @@ function go(i) {
   state.index = Math.max(0, Math.min(SCREENS.length - 1, i));
   const name = SCREENS[state.index];
   if (name.startsWith('tone')) resetTone();
-  if (name === 'room') room = { status: null, level: 0, progress: 0 };
+  if (name === 'quiet' && !mic) mic = { status: EMBEDDED ? 'denied' : null };
+  detailsOpen = false;
   screenEnteredAt = performance.now();
   render();
   window.scrollTo(0, 0);
   app.focus({ preventScroll: true });
 }
 
-function resetTone() {
-  const s = SEQUENCE[toneIndex()];
-  tone = {
-    att: s.first || s.retest ? CONFIG.levels.startFirst : CONFIG.levels.start,
-    presses: [], firstPlay: 0, played: false, playing: false, msg: '',
-  };
-}
 const toneIndex = () => Number(SCREENS[state.index].slice(4));
+
+// PAPER: the first tone starts at −50 dB FS; each next tone starts 15 dB louder than the previous threshold.
+function startLevel(i) {
+  const L = CONFIG.levels;
+  if (i === 0) return L.start;
+  const prev = SEQUENCE[i - 1];
+  const m = state.measurements[earKey(prev.ear)]['hz' + prev.freq];
+  const base = m ? m.dbFullScale : L.start;
+  return Math.max(L.min, Math.min(L.max, base - L.nextOffset));
+}
+
+function resetTone() {
+  tone = { att: startLevel(toneIndex()), presses: [], firstPlay: 0, played: false, playing: false, msg: '' };
+}
 
 /* =====================================================================
  * RENDERING
@@ -500,38 +509,32 @@ function render() {
   $('#langToggle').textContent = t('lang');
   $('#footerText').textContent = t('footer');
   const home = $('#homeLink');
-  if (home) home.textContent = t('home');
+  if (home) { home.textContent = t('home'); home.href = CONFIG.guideUrl; }
   $('#progressBar').style.width = (state.index / (SCREENS.length - 1)) * 100 + '%';
 
   const name = SCREENS[state.index];
   app.classList.toggle('wide', name === 'results');
   if (name === 'welcome') app.innerHTML = viewWelcome();
   else if (name === 'age') app.innerHTML = viewChoice({
-    eyebrow: 'aboutYou', q: 'ageQ', key: 'ageRange', grid: true,
+    eyebrow: 'aboutYou', q: 'ageQ', key: 'age', grid: true,
     options: AGES.map(([v, label]) => ({ v, raw: label })),
   });
   else if (name === 'self') app.innerHTML = viewChoice({
-    eyebrow: 'aboutYou', q: 'selfQ', key: 'selfRating',
-    options: [{ v: 'NO', l: 'good' }, { v: 'YES', l: 'poor' }, { v: 'NOT_SURE', l: 'notSure' }],
+    eyebrow: 'aboutYou', q: 'selfQ', key: 'overallRating',
+    options: [{ v: 'GOOD', l: 'good' }, { v: 'NOT_SURE', l: 'notSure' }, { v: 'POOR', l: 'poor' }],
   });
   else if (/^q\d$/.test(name)) {
-    const [key, q] = LISTENING[Number(name[1])];
+    const n = Number(name[1]);
+    const [key, , q] = LISTENING[n];
     app.innerHTML = viewChoice({
-      eyebrow: 'dailyLife', sub: t('questionOf', { n: Number(name[1]) + 1 }), q, key,
+      eyebrow: 'dailyLife', sub: t('questionOf', { n: n + 1 }), q, key,
       options: FREQUENCY_ANSWERS.map(([v, l]) => ({ v, l })),
     });
   }
-  else if (name === 'phones') app.innerHTML = viewChoice({
-    eyebrow: 'yourHeadphones', q: 'phonesQ', key: 'headphoneType', device: true,
-    options: [{ v: 'inEar', l: 'inEar' }, { v: 'onEar', l: 'onEar' }],
-  });
-  else if (name === 'conn') app.innerHTML = viewChoice({
-    eyebrow: 'yourHeadphones', q: 'connQ', key: 'connection', device: true,
-    options: [{ v: 'wired', l: 'wired' }, { v: 'wireless', l: 'wireless' }],
-  });
   else if (name === 'setup') app.innerHTML = viewSetup();
-  else if (name === 'room') app.innerHTML = viewRoom();
+  else if (name === 'quiet') app.innerHTML = viewQuiet();
   else if (name.startsWith('tone')) { app.innerHTML = viewTone(); updateToneUI(); }
+  else if (name === 'safety') app.innerHTML = viewSafety();
   else if (name === 'results') app.innerHTML = viewResults();
 }
 
@@ -557,11 +560,10 @@ function viewWelcome() {
 }
 
 function viewChoice(def) {
-  const store = def.device ? state.device : state.answers;
-  const cur = store[def.key];
+  const cur = state.answers[def.key];
   const opts = def.options.map((o) => `
     <button type="button" class="option ${cur === o.v ? 'selected' : ''}" data-action="choose"
-      data-key="${def.key}" data-value="${o.v}" ${def.device ? 'data-device="1"' : ''}>${esc(o.raw ?? t(o.l))}</button>`).join('');
+      data-key="${def.key}" data-value="${o.v}">${esc(o.raw ?? t(o.l))}</button>`).join('');
   return `
     <p class="eyebrow">${esc(t(def.eyebrow))}${def.sub ? ' · ' + esc(def.sub) : ''}</p>
     <h1>${esc(t(def.q))}</h1>
@@ -587,48 +589,63 @@ function viewSetup() {
     ${navRow(`<button type="button" class="btn btn-primary" data-action="next">${esc(t('ready'))}</button>`)}`;
 }
 
-function viewRoom() {
+function viewQuiet() {
+  const env = state.environment;
   let status = '';
-  if (room.status === 'listening') status = `<div class="status info">${esc(t('roomListening'))}</div>`;
-  else if (room.status === 'quiet') status = `<div class="status ok">${esc(t('roomQuiet'))}</div>`;
-  else if (room.status === 'noisy') status = `<div class="status warn">${esc(t('roomNoisy'))}</div>`;
-  else if (room.status === 'denied') status = `<div class="status info">${esc(t('roomDenied'))}</div>`;
-  const done = room.status && room.status !== 'listening';
+  if (mic.status === 'listening') status = `<div class="status info">${esc(t('micListening'))}</div>`;
+  else if (mic.status === 'quiet') status = `<div class="status ok">${esc(t('micQuiet'))}</div>`;
+  else if (mic.status === 'noisy') status = `<div class="status warn">${esc(t('micNoisy'))}</div>`;
+  else if (mic.status === 'denied') status = `<div class="status info">${esc(t('micDenied'))}</div>`;
+
+  const micDone = mic.status === 'quiet' || mic.status === 'noisy' || mic.status === 'denied';
+  const canGo = micDone && env.selfRating;
+  const micButton = mic.status === 'denied' ? '' : mic.status === 'listening'
+    ? `<button type="button" class="btn btn-secondary btn-block" disabled>${esc(t('micListening'))}</button>`
+    : micDone
+      ? `<button type="button" class="btn btn-text" data-action="mic">↺ ${esc(t('micAgain'))}</button>`
+      : `<button type="button" class="btn btn-primary btn-block" data-action="mic">${esc(t('micStart'))}</button>`;
+
+  const rating = NOISE_RATINGS.map(([v, l]) => `
+    <button type="button" class="option ${env.selfRating === v ? 'selected' : ''}" data-action="noiseRating" data-value="${v}">${esc(t(l))}</button>`).join('');
+
   return `
-    <p class="eyebrow">${esc(t('roomEyebrow'))}</p>
-    <h1>${esc(t('roomTitle'))}</h1>
-    <p class="lead">${esc(t('roomBody'))}</p>
-    <div class="mic-meter"><div id="micBar" style="width:${room.status === 'listening' ? 0 : 0}%"></div></div>
+    <p class="eyebrow">${esc(t('quietEyebrow'))}</p>
+    <h1>${esc(t('quietTitle'))}</h1>
+    ${mic.status === 'denied' ? '' : `<p class="lead">${esc(t('micBody', { s: CONFIG.micSeconds }))}</p>
+    <div class="mic-meter"><div id="micBar"></div></div>`}
     ${status}
-    ${navRow(done
-      ? `<button type="button" class="btn btn-primary" data-action="next">${esc(t('continue'))}</button>`
-      : `<button type="button" class="btn btn-secondary" data-action="next">${esc(t('roomSkip'))}</button>
-         <button type="button" class="btn btn-primary" data-action="room" ${room.status === 'listening' ? 'disabled' : ''}>${esc(t('roomCheck'))}</button>`)}`;
+    <div class="mic-actions">${micButton}</div>
+    <h2>${esc(t('noiseQ'))}</h2>
+    <div class="options grid">${rating}</div>
+    ${navRow(`<button type="button" class="btn btn-primary" data-action="next" ${canGo ? '' : 'disabled'}>${esc(t('continue'))}</button>`)}`;
 }
 
 function viewTone() {
   const i = toneIndex();
   const s = SEQUENCE[i];
-  const hint = s.retest ? t('retestHint') : s.first ? t('firstHint') : '';
-  const segs = (CONFIG.levels.max - CONFIG.levels.min) / CONFIG.levels.step + 1;
+  const hint = i === 0 ? t('firstHint') : s.extra ? t('extraHint') : '';
+  const L = CONFIG.levels;
+  const segs = (L.max - L.min) / L.step + 1;
   const bars = Array.from({ length: segs }, (_, k) => `<i style="height:${20 + (80 * k) / (segs - 1)}%"></i>`).join('');
+  const dots = SEQUENCE.map((_, k) => `<span class="${k < i ? 'done' : k === i ? 'now' : ''}"></span>`).join('');
   return `
     <div class="tone-head">
       <span class="ear-badge ${s.ear}"><span class="dot"></span>${esc(t(s.ear === 'right' ? 'earRight' : 'earLeft'))} · ${s.freq} ${esc(t('hz'))}</span>
       <span class="counter">${esc(t('toneOf', { n: i + 1, total: SEQUENCE.length }))}</span>
     </div>
     ${hint ? `<div class="hint">${esc(hint)}</div>` : ''}
-    <ul class="instructions"><li>1. <span>${t('instr1')}</span></li><li>2. <span>${t('instr2')}</span></li></ul>
+    <p class="instr">${t('instr')}</p>
 
     <div class="player">
-      <button type="button" class="play-btn" id="playBtn" data-action="play" aria-label="${esc(t('play'))}"></button>
-      <div class="play-label" id="playLabel"></div>
       <div class="volume">
         <button type="button" class="vol-btn" data-action="quieter" aria-label="${esc(t('quieter'))}"><div><div class="sym">−</div><span>${esc(t('quieter'))}</span></div></button>
-        <div class="meter" id="meter" aria-hidden="true">${bars}</div>
+        <button type="button" class="play-btn" id="playBtn" data-action="play" aria-label="${esc(t('play'))}"></button>
         <button type="button" class="vol-btn" data-action="louder" aria-label="${esc(t('louder'))}"><div><div class="sym">+</div><span>${esc(t('louder'))}</span></div></button>
       </div>
+      <div class="play-label" id="playLabel"></div>
+      <div class="meter" id="meter" aria-hidden="true">${bars}</div>
       <div class="vol-msg" id="volMsg" role="status"></div>
+      <div class="dots" aria-hidden="true">${dots}</div>
     </div>
 
     <div class="tone-actions">
@@ -645,7 +662,7 @@ function updateToneUI() {
   const filled = (L.max - tone.att) / L.step + 1;
   [...$('#meter').children].forEach((el, k) => el.classList.toggle('on', k < filled));
   const pb = $('#playBtn');
-  pb.innerHTML = tone.playing ? ICONS.stop : ICONS.play;
+  pb.innerHTML = tone.playing ? ICONS.pause : ICONS.play;
   pb.classList.toggle('playing', tone.playing);
   pb.setAttribute('aria-label', t(tone.playing ? 'stop' : 'play'));
   $('#playLabel').textContent = t(tone.playing ? 'playing' : 'play');
@@ -655,100 +672,91 @@ function updateToneUI() {
   nb.title = tone.played ? '' : t('playFirst');
 }
 
-/* =====================================================================
- * SCORING (spec section 6)
- * ===================================================================== */
-function offsetSum(f) {
-  const o = CONFIG.offsets;
-  const d = state.device;
-  const pick = (tbl, k) => (tbl[k] && tbl[k][f]) || 0;
-  return (o.iso[f] || 0) + (o.maxSpl[f] || 0) + (o.noise[f] || 0)
-    + pick(o.system, 'generic') + pick(o.headphones, d.headphoneType)
-    + pick(o.connection, d.connection) + pick(o.volume, 'generic');
-}
-
-function toHL(m) {
-  const notHeard = m.status === 'NOT_HEARD';
-  const att = notHeard ? CONFIG.levels.min : m.attenuation;
-  return -att + offsetSum(m.frequency) + (notHeard ? CONFIG.scoring.notHeardPenalty : 0);
-}
-
-function computeResults() {
-  const S = CONFIG.scoring;
-  const ears = { right: {}, left: {} };
-  let fast = 0, total = 0, first = null, retest = null;
-
-  SEQUENCE.forEach((s, i) => {
-    const m = state.measurements[i];
-    if (!m) return;
-    m.dbHL = toHL(m);
-    if (s.retest) { retest = m; return; }
-    if (s.first && s.ear === 'right') first = m;
-    ears[s.ear][s.freq] = m.dbHL;
-    total++;
-    if (m.status === 'COMPLETED' && m.timeMs < S.fastMs && m.presses.length === 0) fast++;
-  });
-
-  const avg = (o) => { const v = Object.values(o); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : 0; };
-  const rightAvg = avg(ears.right);
-  const leftAvg = avg(ears.left);
-  const worse = Math.max(rightAvg, leftAvg);
-  const toneClass = worse <= S.goodMax ? 'GOOD' : worse <= S.fairMax ? 'FAIR' : 'POOR';
-
-  const asymmetry = FREQS.some((f) => ears.right[f] != null && ears.left[f] != null && Math.abs(ears.right[f] - ears.left[f]) >= S.asymmetry);
-
-  const qualityFlags = [];
-  const retestDiff = first && retest ? Math.abs(retest.dbHL - first.dbHL) : null;
-  if (retestDiff != null && retestDiff > S.retestTolerance) qualityFlags.push('RETEST_MISMATCH');
-  if (total && fast >= Math.ceil(total / 2)) qualityFlags.push('TOO_FAST');
-
-  const score = Object.fromEntries(FREQUENCY_ANSWERS.map(([v, , n]) => [v, n]));
-  const qSum = LISTENING.reduce((sum, [key]) => sum + (score[state.answers[key]] || 0), 0);
-  const qClass = qSum <= S.questionnaire.noMax ? 'NO' : qSum <= S.questionnaire.maybeMax ? 'MAYBE' : 'YES';
-
-  const verdict = qualityFlags.length ? 'INCONCLUSIVE' : toneClass;
-  return {
-    ears, rightAvg, leftAvg, worseEarAvg: worse, toneClass, asymmetry, retestDiff, fastCount: fast,
-    qualityFlags, questionnaireScore: qSum, questionnaireClass: qClass, verdict,
-    referral: verdict !== 'GOOD' || asymmetry || qClass === 'YES',
-    calibrated: CONFIG.calibrated,
-  };
+function viewSafety() {
+  return `
+    <div class="safety">
+      <span class="safety-ico">${ICONS.volume}</span>
+      <p class="eyebrow">${esc(t('safetyEyebrow'))}</p>
+      <h1>${esc(t('safetyTitle'))}</h1>
+      <p class="lead">${esc(t('safetyBody'))}</p>
+      <button type="button" class="btn btn-primary btn-block" data-action="showResults">${esc(t('showResults'))}</button>
+    </div>`;
 }
 
 /* =====================================================================
  * RESULTS
  * ===================================================================== */
-function audiogramSVG(r) {
-  const W = 560, H = 330, l = 58, rgt = 20, top = 16, bot = 48;
-  const pw = W - l - rgt, ph = H - top - bot;
-  const yMin = -10, yMax = 100;
-  const x = (f) => l + (FREQS.indexOf(f) + 0.5) * (pw / FREQS.length);
-  const y = (v) => top + ((Math.max(yMin, Math.min(yMax, v)) - yMin) / (yMax - yMin)) * ph;
-
-  let g = `<rect x="${l}" y="${y(yMin)}" width="${pw}" height="${y(CONFIG.scoring.goodMax) - y(yMin)}" fill="var(--good-soft)"/>`;
-  g += `<text x="${l + pw - 8}" y="${y(CONFIG.scoring.goodMax) - 7}" text-anchor="end" font-size="12" fill="var(--good)" font-weight="600">${esc(t('normalRange'))}</text>`;
-  for (let v = yMin; v <= yMax; v += 10) {
-    g += `<line x1="${l}" x2="${l + pw}" y1="${y(v)}" y2="${y(v)}" stroke="var(--border)" stroke-width="1"/>`;
-    g += `<text x="${l - 10}" y="${y(v) + 4}" text-anchor="end" font-size="12" fill="var(--muted)">${v}</text>`;
-  }
-  FREQS.forEach((f) => {
-    g += `<line x1="${x(f)}" x2="${x(f)}" y1="${top}" y2="${top + ph}" stroke="var(--border)" stroke-dasharray="3 4"/>`;
-    g += `<text x="${x(f)}" y="${top + ph + 20}" text-anchor="middle" font-size="12" fill="var(--muted)">${f}</text>`;
+function computeResults() {
+  const flat = Object.values(state.measurements.RIGHT).concat(Object.values(state.measurements.LEFT));
+  const rushed = flat.filter((m) => m.measurementStatus === 'COMPLETED' && m.durationInMilliseconds < CONFIG.fastMs && m.volumeOperationsSequence.length === 0).length;
+  const qualityFlags = rushed >= Math.ceil(flat.length / 2) ? ['TOO_FAST'] : [];
+  const a = state.answers;
+  return HearingEngine.run({
+    ageBand: a.age,
+    answers: { q2: a.overallRating, q4: a.loudEnoughButMumbled, q5: a.birdsChirping },
+    measurements: state.measurements,
+    noiseMasked: state.environment.noiseMasked,
+    qualityFlags,
   });
-  g += `<text x="${l + pw / 2}" y="${H - 6}" text-anchor="middle" font-size="12" fill="var(--muted)" font-weight="600">${esc(t('audiogramX'))}</text>`;
-  g += `<text transform="translate(14 ${top + ph / 2}) rotate(-90)" text-anchor="middle" font-size="12" fill="var(--muted)" font-weight="600">${esc(t('audiogramY'))}</text>`;
+}
 
-  for (const ear of ['right', 'left']) {
-    const color = ear === 'right' ? 'var(--right)' : 'var(--left)';
-    const pts = FREQS.filter((f) => r.ears[ear][f] != null).map((f) => [x(f) + (ear === 'right' ? -3 : 3), y(r.ears[ear][f])]);
-    if (pts.length > 1) g += `<polyline points="${pts.map((p) => p.join(',')).join(' ')}" fill="none" stroke="${color}" stroke-width="2.2"/>`;
-    for (const [px, py] of pts) {
-      g += ear === 'right'
-        ? `<circle cx="${px}" cy="${py}" r="7" fill="var(--surface)" stroke="${color}" stroke-width="2.6"/>`
-        : `<path d="M${px - 6} ${py - 6}L${px + 6} ${py + 6}M${px + 6} ${py - 6}L${px - 6} ${py + 6}" stroke="${color}" stroke-width="2.8" stroke-linecap="round"/>`;
-    }
+function bandsLegend() {
+  const bands = [['GOOD', 0, 15], ['MILD', 15, 35], ['MODERATE', 35, 65], ['SEVERE', 65, 90]];
+  return bands;
+}
+
+function chartSVG(r) {
+  const W = 560, rowH = 34, top = 40, left = 78, right = 16, bottom = 30;
+  const pw = W - left - right;
+  const H = top + OUT_FREQS.length * rowH + bottom;
+  const x = (v) => left + (Math.max(0, Math.min(90, v)) / 90) * pw;
+  let g = '';
+  for (const [b, lo, hi] of bandsLegend()) {
+    g += `<rect x="${x(lo)}" y="${top - 26}" width="${x(hi) - x(lo)}" height="${OUT_FREQS.length * rowH + 26}" class="band band-${b}"/>`;
+    g += `<text x="${(x(lo) + x(hi)) / 2}" y="${top - 10}" text-anchor="middle" class="band-label band-label-${b}">${esc(t('band' + b))}</text>`;
   }
-  return `<svg viewBox="0 0 ${W} ${H}" direction="ltr" role="img" aria-label="${esc(t('earsTitle'))}">${g}</svg>`;
+  for (let v = 0; v <= 90; v += 15) {
+    g += `<line x1="${x(v)}" x2="${x(v)}" y1="${top}" y2="${top + OUT_FREQS.length * rowH}" class="grid"/>`;
+    g += `<text x="${x(v)}" y="${top + OUT_FREQS.length * rowH + 18}" text-anchor="middle" class="axis">${v}</text>`;
+  }
+  OUT_FREQS.forEach((f, k) => {
+    const y0 = top + k * rowH;
+    g += `<text x="${left - 10}" y="${y0 + rowH / 2 + 4}" text-anchor="end" class="axis">${f >= 1000 ? f / 1000 + ' k' : f} ${esc(t('hz'))}</text>`;
+    const rv = r.audiogram.R[f], lv = r.audiogram.L[f];
+    g += `<rect x="${x(0)}" y="${y0 + 6}" width="${Math.max(2, x(rv) - x(0))}" height="10" rx="3" class="bar-right"/>`;
+    g += `<rect x="${x(0)}" y="${y0 + 18}" width="${Math.max(2, x(lv) - x(0))}" height="10" rx="3" class="bar-left"/>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" direction="ltr" role="img" aria-label="${esc(t('detailTitle'))}">${g}</svg>`;
+}
+
+function viewDetails(r) {
+  const rows = OUT_FREQS.map((f) => `<tr><td>${f} ${esc(t('hz'))}</td><td>${r.audiogram.R[f]}</td><td>${r.audiogram.L[f]}</td></tr>`).join('');
+  return `
+    <div class="details-panel" id="detailsPanel">
+      <h2>${esc(t('detailTitle'))}</h2>
+      <div class="chart">${chartSVG(r)}
+        <div class="legend">
+          <span><i class="sw sw-right"></i>${esc(t('earRight'))}</span>
+          <span><i class="sw sw-left"></i>${esc(t('earLeft'))}</span>
+        </div>
+      </div>
+      <p class="small muted"><b>${esc(t('estimateOnly'))}</b> <a href="${esc(CONFIG.paperUrl)}" target="_blank" rel="noopener">${esc(t('method'))}</a></p>
+      <div class="table-wrap">
+        <table class="db-table">
+          <thead><tr><th>${esc(t('freqCol'))}</th><th>${esc(t('earRight'))} (${esc(t('dbhl'))})</th><th>${esc(t('earLeft'))} (${esc(t('dbhl'))})</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="row-actions">
+        ${EMBEDDED
+          ? `<button type="button" class="btn btn-secondary" data-action="copyResult">${esc(t('copyResult'))}</button>
+             <button type="button" class="btn btn-secondary" data-action="copyData">${esc(t('copyData'))}</button>`
+          : `<button type="button" class="btn btn-secondary" data-action="print">${esc(t('print'))}</button>
+             <button type="button" class="btn btn-secondary" data-action="download">${esc(t('download'))}</button>`}
+      </div>
+      <p class="muted small" id="copyMsg" hidden>${esc(t('copyManual'))}</p>
+      <textarea id="copyBox" class="copy-box" rows="6" readonly hidden></textarea>
+    </div>`;
 }
 
 function viewResults() {
@@ -757,81 +765,60 @@ function viewResults() {
   const icon = { GOOD: '✓', FAIR: '!', POOR: '!', INCONCLUSIVE: '?' }[v];
 
   const notes = [];
-  if (v !== 'INCONCLUSIVE' && r.asymmetry) notes.push(`<div class="note">${esc(t('asymNote'))}</div>`);
-  if (v === 'GOOD' && r.questionnaireClass === 'YES') notes.push(`<div class="note">${esc(t('mismatchNote'))}</div>`);
-  if (!r.calibrated) notes.push(`<div class="note info">${esc(t('uncalNote'))}</div>`);
-
-  const scale = ['GOOD', 'FAIR', 'POOR'].map((c) =>
-    `<div class="${c} ${c === v ? 'current' : ''}">${esc(t('scale' + c[0] + c.slice(1).toLowerCase()))}</div>`).join('');
-
-  const tile = (ear, val) => `
-    <div class="tile ${ear}">
-      <div class="label"><span class="dot"></span>${esc(t(ear === 'right' ? 'earRight' : 'earLeft'))}</div>
-      <div class="value">${val} <small>${esc(t('dbhl'))} · ${esc(t('average'))}</small></div>
-    </div>`;
+  if (v === 'INCONCLUSIVE') notes.push(`<div class="note">${esc(t('reason' + r.reason))}</div>`);
+  if (r.asymmetry && r.asymmetry.flagged && v !== 'INCONCLUSIVE') notes.push(`<div class="note">${esc(t('asymNote'))}</div>`);
+  const difficulty = ['ALWAYS', 'OFTEN'].includes(state.answers.loudEnoughButMumbled) || ['ALWAYS', 'OFTEN'].includes(state.answers.birdsChirping) || state.answers.overallRating === 'POOR';
+  if (v === 'GOOD' && difficulty) notes.push(`<div class="note">${esc(t('mismatchNote'))}</div>`);
+  if (!r.calibrated && v !== 'INCONCLUSIVE') notes.push(`<div class="note info">${esc(t('uncalNote'))}</div>`);
 
   const freqLabel = Object.fromEntries(FREQUENCY_ANSWERS.map(([val, key]) => [val, t(key)]));
-  const answers = LISTENING.map(([key, , short]) =>
+  const answers = LISTENING.map(([key, , , short]) =>
     `<li><span>${esc(t(short))}</span><b>${esc(freqLabel[state.answers[key]] || '—')}</b></li>`).join('');
 
   return `
     <p class="eyebrow">${esc(t('resultsEyebrow'))}</p>
-    <h1>${esc(t('resultsTitle'))}</h1>
-
     <div class="verdict ${v}">
       <div class="icon">${icon}</div>
-      <div><h2>${esc(t(v + '_title'))}</h2><p>${esc(t(v + '_body'))}</p></div>
+      <div><h1>${esc(t(v + '_title'))}</h1><p>${esc(t(v + '_short'))}</p></div>
     </div>
-    ${v !== 'INCONCLUSIVE' ? `<div class="scale">${scale}</div>` : ''}
     <div class="notes">${notes.join('')}</div>
 
-    ${v !== 'INCONCLUSIVE' ? `
-      <h2>${esc(t('earsTitle'))}</h2>
-      <div class="ear-tiles">${tile('right', r.rightAvg)}${tile('left', r.leftAvg)}</div>
-      <div class="audiogram">
-        ${audiogramSVG(r)}
-        <div class="legend">
-          <span><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--right)" stroke-width="2.4"/></svg>${esc(t('earRight'))}</span>
-          <span><svg width="14" height="14"><path d="M2 2L12 12M12 2L2 12" stroke="var(--left)" stroke-width="2.4" stroke-linecap="round"/></svg>${esc(t('earLeft'))}</span>
-        </div>
-      </div>` : ''}
-
-    <h2>${esc(t('answersTitle'))} <span class="chip ${r.questionnaireClass}">${esc(t('q' + r.questionnaireClass))}</span></h2>
-    <ul class="answers">${answers}</ul>
+    <details class="more" open>
+      <summary>${esc(t('whatMeans'))}</summary>
+      <p>${esc(t(v + '_mean'))}</p>
+    </details>
+    <details class="more" open>
+      <summary>${esc(t('nextSteps'))}</summary>
+      <p>${esc(t(v + '_next'))}</p>
+    </details>
 
     <div class="cta">
       ${v === 'INCONCLUSIVE'
         ? `<button type="button" class="btn btn-primary btn-block" data-action="retake">${esc(t('retake'))}</button>`
-        : `<a class="btn btn-primary btn-block" href="${esc(CONFIG.bookingUrl)}">${esc(t('book'))}</a>`}
-      ${EMBEDDED ? `
-      <div class="row">
-        <button type="button" class="btn btn-secondary" data-action="copyResult">${esc(t('copyResult'))}</button>
-        <button type="button" class="btn btn-secondary" data-action="copyData">${esc(t('copyData'))}</button>
-      </div>
-      <p class="muted small" id="copyMsg" hidden>${esc(t('copyManual'))}</p>
-      <textarea id="copyBox" class="copy-box" rows="6" readonly hidden></textarea>` : `
-      <div class="row">
-        <button type="button" class="btn btn-secondary" data-action="email">${esc(t('email'))}</button>
-        <button type="button" class="btn btn-secondary" data-action="print">${esc(t('print'))}</button>
-      </div>
-      <div class="row">
-        <button type="button" class="btn btn-secondary" data-action="download">${esc(t('download'))}</button>
-      </div>`}
-      ${v === 'INCONCLUSIVE' ? '' : `<button type="button" class="btn btn-text" data-action="retake">↺ ${esc(t('retake'))}</button>`}
-    </div>`;
+        : `<a class="btn btn-primary btn-block" href="${esc(CONFIG.bookingUrl)}">${esc(t('book'))}</a>
+           <div class="row">
+             <button type="button" class="btn btn-secondary" data-action="toggleDetails" aria-expanded="${detailsOpen}">${esc(t('detailed'))}</button>
+             <a class="btn btn-secondary" href="${esc(CONFIG.guideUrl)}">${esc(t('learn'))}</a>
+           </div>
+           <button type="button" class="btn btn-text" data-action="retake">↺ ${esc(t('retake'))}</button>`}
+    </div>
+
+    ${v !== 'INCONCLUSIVE' && detailsOpen ? viewDetails(r) : ''}
+
+    <h2>${esc(t('answersTitle'))}</h2>
+    <ul class="answers">${answers}</ul>`;
 }
 
-function emailBody() {
+function summaryText() {
   const r = state.results;
-  const lines = [t(r.verdict + '_title'), ''];
+  const lines = [t(r.verdict + '_title'), t(r.verdict + '_short'), ''];
   if (r.verdict !== 'INCONCLUSIVE') {
-    lines.push(`${t('earRight')}: ${r.rightAvg} ${t('dbhl')} (${t('average')})`);
-    lines.push(`${t('earLeft')}: ${r.leftAvg} ${t('dbhl')} (${t('average')})`);
-    for (const ear of ['right', 'left']) {
-      lines.push(`${t(ear === 'right' ? 'earRight' : 'earLeft')} — ` + FREQS.map((f) => `${f} ${t('hz')}: ${r.ears[ear][f]}`).join(', '));
+    for (const ear of ['R', 'L']) {
+      lines.push(`${t(ear === 'R' ? 'earRight' : 'earLeft')} (${t('dbhl')}): ` + OUT_FREQS.map((f) => `${f} ${t('hz')} ${r.audiogram[ear][f]}`).join(', '));
     }
+    lines.push('', t('estimateOnly'));
   }
-  lines.push('', `${t('qResult')}: ${t('q' + r.questionnaireClass)}`, '', t('footer'));
+  lines.push('', t('footer'));
   return lines.join('\n');
 }
 
@@ -844,9 +831,8 @@ const actions = {
   back() { go(state.index - 1); },
 
   choose(el) {
-    const store = el.dataset.device ? state.device : state.answers;
-    store[el.dataset.key] = el.dataset.value;
-    if (!el.dataset.device) state.answerTimesMs[el.dataset.key] = Math.round(performance.now() - screenEnteredAt);
+    state.answers[el.dataset.key] = el.dataset.value;
+    state.answerTimesMs[el.dataset.key] = Math.round(performance.now() - screenEnteredAt);
     el.parentElement.querySelectorAll('.option').forEach((b) => b.classList.toggle('selected', b === el));
     setTimeout(() => go(state.index + 1), 220);
   },
@@ -855,25 +841,37 @@ const actions = {
     const ear = el.dataset.value;
     document.querySelectorAll('.ear-btn').forEach((b) => b.classList.toggle('active', b === el));
     clearTimeout(channelTimer);
-    Tone.start(1000, ear, 25);
+    Tone.start(1000, ear, CONFIG.levels.start - 10);
     channelTimer = setTimeout(() => { Tone.stop(); el.classList.remove('active'); }, 2300);
   },
 
-  room() {
-    room.status = 'listening';
+  mic() {
+    mic.status = 'listening';
     render();
     RoomCheck.run(
-      (db, p) => {
+      (db) => {
         const bar = $('#micBar');
         if (bar) bar.style.width = Math.max(2, Math.min(100, (db + 90) * (100 / 70))) + '%';
       },
       (median) => {
-        if (SCREENS[state.index] !== 'room') return;
-        state.room = median == null ? { status: 'unavailable' } : { medianDbfs: Math.round(median), noisy: median > CONFIG.roomNoisyDbfs };
-        room.status = median == null ? 'denied' : median > CONFIG.roomNoisyDbfs ? 'noisy' : 'quiet';
+        if (SCREENS[state.index] !== 'quiet') return;
+        const env = state.environment;
+        if (median == null) { mic.status = 'denied'; env.micStatus = 'UNAVAILABLE'; }
+        else {
+          env.micMedianDbfs = Math.round(median);
+          mic.status = median > CONFIG.roomNoisyDbfs ? 'noisy' : 'quiet';
+          env.micStatus = mic.status.toUpperCase();
+        }
+        updateNoise();
         render();
       },
     );
+  },
+
+  noiseRating(el) {
+    state.environment.selfRating = el.dataset.value;
+    updateNoise();
+    render();
   },
 
   play() {
@@ -902,12 +900,21 @@ const actions = {
   toneNext() { if (tone.played) recordTone('COMPLETED'); },
   notHeard() { recordTone('NOT_HEARD'); },
 
-  email() {
-    const href = `mailto:${encodeURIComponent(CONFIG.reportEmail)}?subject=${encodeURIComponent(t('emailSubject'))}&body=${encodeURIComponent(emailBody())}`;
-    window.location.href = href;
+  showResults() {
+    state.results = computeResults();
+    state.completed = true;
+    state.endedAt = new Date().toISOString();
+    go(state.index + 1);
   },
+
+  toggleDetails() {
+    detailsOpen = !detailsOpen;
+    render();
+    if (detailsOpen) $('#detailsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  },
+
   print() { window.print(); },
-  copyResult(el) { copyText(emailBody(), el); },
+  copyResult(el) { copyText(summaryText(), el); },
   copyData(el) { copyText(JSON.stringify(state, null, 2), el); },
   download() {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -918,13 +925,17 @@ const actions = {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   },
   retake() {
-    const device = state.device;
     state = newState();
     state.consent = true;
-    state.device = device;
+    mic = null;
     go(1);
   },
 };
+
+function updateNoise() {
+  const env = state.environment;
+  env.noiseMasked = mic.status === 'noisy' || env.selfRating === 'LOUD';
+}
 
 function copyText(text, el) {
   const label = el.textContent;
@@ -954,26 +965,23 @@ function changeLevel(delta) {
   tone.att = target;
   tone.msg = '';
   if (!tone.playing) actions.play();
-  tone.presses.push({ dir: delta < 0 ? '+' : '-', atMs: Math.round(performance.now() - tone.firstPlay), attenuation: target });
+  tone.presses.push({ op: delta < 0 ? 'UP' : 'DOWN', atMs: Math.round(performance.now() - tone.firstPlay), dbFullScale: target });
   Tone.setLevel(tone.att);
   updateToneUI();
 }
 
+// Stored like the live screener: dbFullScale is the attenuation in dB below full scale.
 function recordTone(status) {
-  const i = toneIndex();
-  const s = SEQUENCE[i];
-  const att = status === 'NOT_HEARD' ? CONFIG.levels.min : tone.att;
-  state.measurements[i] = {
-    ear: s.ear, frequency: s.freq, retest: !!s.retest,
-    attenuation: att, dbFullScale: CONFIG.tone.peakDbfs - att,
-    status, timeMs: tone.firstPlay ? Math.round(performance.now() - tone.firstPlay) : 0,
-    presses: tone.presses,
+  const s = SEQUENCE[toneIndex()];
+  const rec = {
+    dbFullScale: status === 'NOT_HEARD' ? CONFIG.levels.min : tone.att,
+    measurementStatus: status,
+    noiseMasked: state.environment.noiseMasked,
+    durationInMilliseconds: Math.round(performance.now() - screenEnteredAt),
+    volumeOperationsSequence: tone.presses,
   };
-  if (SCREENS[state.index + 1] === 'results') {
-    state.results = computeResults();
-    state.completed = true;
-    state.endedAt = new Date().toISOString();
-  }
+  state.measurements[earKey(s.ear)]['hz' + s.freq] = rec;
+  state.measurements.BOTH[(s.ear === 'right' ? 'R' : 'L') + s.freq] = rec;
   go(state.index + 1);
 }
 
