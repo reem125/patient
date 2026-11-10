@@ -204,6 +204,8 @@ p { margin: 0 0 14px; }
 @keyframes pulse { from { transform: scale(.7); opacity: .6; } to { transform: scale(1.25); opacity: 1; } }
 
 /* ---------- Room check ---------- */
+.mic-meter { height: 12px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 18px 0 8px; }
+.mic-meter > div { height: 100%; width: 0; background: var(--brand); transition: width .08s linear; }
 .status { padding: 12px 14px; border-radius: 12px; font-weight: 500; margin-top: 14px; }
 .status.ok { background: var(--good-soft); color: var(--good); }
 .status.warn { background: var(--fair-soft); color: var(--fair); }
@@ -324,6 +326,7 @@ p { margin: 0 0 14px; }
 .dots span { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
 .dots span.done { background: var(--brand); }
 .dots span.now { background: var(--brand); box-shadow: 0 0 0 4px var(--brand-soft); }
+.mic-actions { display: flex; justify-content: center; margin-top: 12px; }
 .safety { text-align: center; display: grid; justify-items: center; gap: 4px; padding-block: 10px; }
 .safety .lead { max-width: 46ch; margin-bottom: 18px; }
 .safety-ico { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: var(--fair-soft); color: var(--fair); margin-bottom: 10px; }

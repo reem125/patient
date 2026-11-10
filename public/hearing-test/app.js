@@ -15,6 +15,14 @@ const CONFIG = {
   tone: { burst: 0.4, fade: 0.03, gap: 0.25, bursts: 2, pause: 0.6 },
 
   askAsymmetryTone: true,     // extra left 4 kHz tone to catch one-sided loss
+  micSeconds: 10,
+  // Uncalibrated mic levels (dB re full scale). Noisy if the typical level is high (steady noise)
+  // or loud moments add up to 3 % of the measurement, 0.3 s of 10 s (talking, coughing, doors).
+  roomNoisyDbfs: -50,         // median level
+  roomPeakDbfs: -45,          // a reading above this counts as a loud moment
+  roomLoudShare: 0.03,
+  micSilentDbfs: -95,         // loudest reading below this = no signal from that microphone
+  micProbeMs: 700,            // how long a microphone may stay silent before the next one is tried
   fastMs: 2000,               // a tone set this fast with no +/- presses counts as rushed
 };
 
@@ -89,6 +97,14 @@ const I18N = {
     ready: "I'm ready",
 
     quietEyebrow: 'Your surroundings',
+    quietTitle: 'Is your room quiet enough?',
+    micBody: 'We listen through your microphone for {s} seconds to check the background noise. Nothing is recorded or sent.',
+    micStart: 'Measure background noise',
+    micAgain: 'Measure again',
+    micListening: 'Measuring… please stay silent.',
+    micQuiet: 'Your room is quiet enough.',
+    micNoisy: 'We heard noise during the measurement. Stay silent or move to a quieter place, then measure again.',
+    micDenied: 'The microphone is not available. Answer the question below to continue.',
     noiseQ: 'How loud is the background noise right now?',
     noiseVerySoft: 'Very soft', noiseSoft: 'Soft', noiseModerate: 'Moderate', noiseLoud: 'Loud',
     loudWarn: 'A loud room makes the result unreliable. Move to a quieter place before you continue.',
@@ -190,6 +206,14 @@ const I18N = {
     ready: 'أنا جاهز',
 
     quietEyebrow: 'المكان من حولك',
+    quietTitle: 'هل غرفتك هادئة بما يكفي؟',
+    micBody: 'نستمع عبر الميكروفون لمدة {s} ثوانٍ لقياس الضوضاء المحيطة. لا يتم تسجيل أو إرسال أي شيء.',
+    micStart: 'قِس الضوضاء المحيطة',
+    micAgain: 'قِس مرة أخرى',
+    micListening: 'جارٍ القياس… يُرجى التزام الصمت.',
+    micQuiet: 'غرفتك هادئة بما يكفي.',
+    micNoisy: 'سمعنا ضوضاء أثناء القياس. التزم الصمت أو انتقل إلى مكان أهدأ، ثم أعد القياس.',
+    micDenied: 'الميكروفون غير متاح. أجب عن السؤال أدناه للمتابعة.',
     noiseQ: 'ما مستوى الضوضاء المحيطة بك الآن؟',
     noiseVerySoft: 'منخفضة جدًا', noiseSoft: 'منخفضة', noiseModerate: 'متوسطة', noiseLoud: 'مرتفعة',
     loudWarn: 'الغرفة الصاخبة تجعل النتيجة غير موثوقة. انتقل إلى مكان أهدأ قبل المتابعة.',
@@ -353,6 +377,127 @@ const Tone = {
 };
 
 /* =====================================================================
+ * ROOM CHECK — microphone level (uncalibrated, indicative only)
+ * ===================================================================== */
+const MIC_CONSTRAINTS = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+const BLUETOOTH_MIC = /bluetooth|airpods|hands-?free|headset|\bbt\b|tune\d+bt/i;
+const BUILT_IN_MIC = /built-?in|internal|macbook|imac|مدمج|integrated/i;
+
+const RoomCheck = {
+  stream: null, raf: 0, src: null, sink: null, run_id: 0,
+
+  // Microphones to try, best first: the device's built-in mic, then other wired mics, Bluetooth last.
+  // A Bluetooth headset mic is avoided: it is often silent in the browser, and opening it switches
+  // the headset into low-quality call mode, which would spoil the tones.
+  async candidates() {
+    let granted = false;
+    try { granted = (await navigator.permissions.query({ name: 'microphone' })).state === 'granted'; } catch (e) { /* not supported */ }
+    if (!granted) {
+      // Labels are hidden until permission is given, so ask once and close straight away.
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+      s.getTracks().forEach((tr) => tr.stop());
+    }
+    const inputs = (await navigator.mediaDevices.enumerateDevices())
+      .filter((d) => d.kind === 'audioinput' && d.deviceId && d.deviceId !== 'default' && d.deviceId !== 'communications');
+    const rank = (d) => (BUILT_IN_MIC.test(d.label) ? 0 : BLUETOOTH_MIC.test(d.label) ? 2 : 1);
+    const list = inputs.sort((a, b) => rank(a) - rank(b));
+    return list.length ? list : [{ deviceId: '', label: '' }];
+  },
+
+  // Call from a click handler: the audio context is started before anything is awaited,
+  // while the click still counts as a user gesture.
+  async run(onLevel, onDone) {
+    const id = ++this.run_id;
+    const ctx = Tone.ensure();
+    let devices;
+    try {
+      devices = await this.candidates();
+      await ctx.resume();
+    } catch (e) {
+      onDone(null);
+      return;
+    }
+
+    for (const dev of devices) {
+      if (id !== this.run_id) return;
+      const stats = await this.measure(ctx, dev, onLevel, id);
+      if (stats === 'ABORTED') return;
+      if (stats && !stats.silent) { stats.device = dev.label || 'default'; onDone(stats); return; }
+    }
+    onDone(null);
+  },
+
+  // Listens to one microphone. Gives up early (null) if it is still digitally silent after the probe time.
+  async measure(ctx, dev, onLevel, id) {
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: dev.deviceId ? { ...MIC_CONSTRAINTS, deviceId: { exact: dev.deviceId } } : MIC_CONSTRAINTS,
+      });
+    } catch (e) {
+      return null;
+    }
+    if (id !== this.run_id) { this.stop(); return 'ABORTED'; }
+    this.src = ctx.createMediaStreamSource(this.stream);
+    const an = ctx.createAnalyser();
+    an.fftSize = 2048;
+    // Keep the analyser in the rendered graph (silently) so every browser keeps feeding it.
+    this.sink = ctx.createGain();
+    this.sink.gain.value = 0;
+    this.src.connect(an).connect(this.sink).connect(ctx.destination);
+
+    const buf = new Float32Array(an.fftSize);
+    const samples = [];
+    const dur = CONFIG.micSeconds * 1000;
+    return new Promise((resolve) => {
+      const t0 = performance.now();
+      const tick = () => {
+        if (id !== this.run_id) { this.stop(); resolve('ABORTED'); return; }
+        an.getFloatTimeDomainData(buf);
+        let sum = 0;
+        for (const v of buf) sum += v * v;
+        const db = 10 * Math.log10(sum / buf.length + 1e-12);
+        samples.push(db);
+        const elapsed = performance.now() - t0;
+        if (elapsed > CONFIG.micProbeMs && Math.max(...samples) < CONFIG.micSilentDbfs) {
+          this.stop();
+          resolve(null);
+          return;
+        }
+        onLevel(db, elapsed / dur);
+        if (elapsed < dur) { this.raf = requestAnimationFrame(tick); return; }
+        this.stop();
+        resolve(roomStats(samples));
+      };
+      tick();
+    });
+  },
+
+  stop() {
+    cancelAnimationFrame(this.raf);
+    if (this.src) { this.src.disconnect(); this.src = null; }
+    if (this.sink) { this.sink.disconnect(); this.sink = null; }
+    if (this.stream) { this.stream.getTracks().forEach((tr) => tr.stop()); this.stream = null; }
+  },
+
+  cancel() {
+    this.run_id++;
+    this.stop();
+  },
+};
+
+function roomStats(samples) {
+  const s = [...samples].sort((a, b) => a - b);
+  const pick = (q) => s[Math.min(s.length - 1, Math.floor(q * s.length))];
+  const median = pick(0.5);
+  const loudShare = s.filter((v) => v > CONFIG.roomPeakDbfs).length / s.length;
+  const max = s[s.length - 1];
+  return {
+    median, p90: pick(0.9), max, loudShare,
+    noisy: median > CONFIG.roomNoisyDbfs || loudShare >= CONFIG.roomLoudShare,
+  };
+}
+
+/* =====================================================================
  * STATE & FLOW
  * ===================================================================== */
 const SCREENS = ['welcome', 'age', 'self', 'q0', 'q1', 'q2', 'q3', 'setup', 'quiet',
@@ -362,6 +507,7 @@ let state;
 let screenEnteredAt = 0;
 let tone = null;
 let channelTimer = 0;
+let mic = null;
 let detailsOpen = false;
 
 function newState() {
@@ -382,7 +528,7 @@ function newState() {
       mobile: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent),
       volumeInstruction: 100,
     },
-    environment: { selfRating: null, noiseMasked: false },
+    environment: { micDevice: null, micMedianDbfs: null, micP90Dbfs: null, micMaxDbfs: null, micStatus: null, selfRating: null, noiseMasked: false },
     measurements: { RIGHT: {}, LEFT: {}, BOTH: {} },
     screenTimesMs: {},
     results: null,
@@ -391,6 +537,7 @@ function newState() {
 
 function go(i) {
   Tone.stop();
+  RoomCheck.cancel();
   clearTimeout(channelTimer);
   const prev = SCREENS[state.index];
   state.screenTimesMs[prev] = (state.screenTimesMs[prev] || 0) + Math.round(performance.now() - screenEnteredAt);
@@ -398,6 +545,7 @@ function go(i) {
   state.index = Math.max(0, Math.min(SCREENS.length - 1, i));
   const name = SCREENS[state.index];
   if (name.startsWith('tone')) resetTone();
+  if (name === 'quiet' && !mic) mic = { status: EMBEDDED ? 'denied' : null };
   detailsOpen = false;
   screenEnteredAt = performance.now();
   render();
@@ -514,15 +662,36 @@ function viewSetup() {
 
 function viewQuiet() {
   const env = state.environment;
+  let status = '';
+  if (mic.status === 'listening') status = `<div class="status info">${esc(t('micListening'))}</div>`;
+  else if (mic.status === 'quiet') status = `<div class="status ok">${esc(t('micQuiet'))}</div>`;
+  else if (mic.status === 'noisy') status = `<div class="status warn">${esc(t('micNoisy'))}</div>`;
+  else if (mic.status === 'denied') status = `<div class="status info">${esc(t('micDenied'))}</div>`;
+  const ratingWarn = mic.status === 'denied' && env.selfRating === 'LOUD'
+    ? `<div class="status warn">${esc(t('loudWarn'))}</div>` : '';
+
+  const micDone = ['quiet', 'noisy', 'denied'].includes(mic.status);
+  const canGo = micDone && env.selfRating;
+  const micButton = mic.status === 'denied' ? '' : mic.status === 'listening'
+    ? `<button type="button" class="btn btn-secondary btn-block" disabled>${esc(t('micListening'))}</button>`
+    : micDone
+      ? `<button type="button" class="btn btn-text" data-action="mic">↺ ${esc(t('micAgain'))}</button>`
+      : `<button type="button" class="btn btn-primary btn-block" data-action="mic">${esc(t('micStart'))}</button>`;
+
   const rating = NOISE_RATINGS.map(([v, l]) => `
     <button type="button" class="option ${env.selfRating === v ? 'selected' : ''}" data-action="noiseRating" data-value="${v}">${esc(t(l))}</button>`).join('');
-  const warn = env.selfRating === 'LOUD' ? `<div class="status warn">${esc(t('loudWarn'))}</div>` : '';
+
   return `
     <p class="eyebrow">${esc(t('quietEyebrow'))}</p>
-    <h1>${esc(t('noiseQ'))}</h1>
+    <h1>${esc(t('quietTitle'))}</h1>
+    ${mic.status === 'denied' ? '' : `<p class="lead">${esc(t('micBody', { s: CONFIG.micSeconds }))}</p>
+    <div class="mic-meter"><div id="micBar"></div></div>`}
+    ${status}
+    <div class="mic-actions">${micButton}</div>
+    <h2>${esc(t('noiseQ'))}</h2>
     <div class="options grid">${rating}</div>
-    ${warn}
-    ${navRow(`<button type="button" class="btn btn-primary" data-action="next" ${env.selfRating ? '' : 'disabled'}>${esc(t('continue'))}</button>`)}`;
+    ${ratingWarn}
+    ${navRow(`<button type="button" class="btn btn-primary" data-action="next" ${canGo ? '' : 'disabled'}>${esc(t('continue'))}</button>`)}`;
 }
 
 function viewTone() {
@@ -749,6 +918,33 @@ const actions = {
     channelTimer = setTimeout(() => { Tone.stop(); el.classList.remove('active'); }, 2300);
   },
 
+  mic() {
+    mic.status = 'listening';
+    render();
+    RoomCheck.run(
+      (db) => {
+        const bar = $('#micBar');
+        if (bar) bar.style.width = Math.max(2, Math.min(100, (db + 90) * (100 / 70))) + '%';
+      },
+      (stats) => {
+        if (SCREENS[state.index] !== 'quiet') return;
+        const env = state.environment;
+        if (stats == null) { mic.status = 'denied'; env.micStatus = 'UNAVAILABLE'; }
+        else {
+          env.micMedianDbfs = Math.round(stats.median);
+          env.micP90Dbfs = Math.round(stats.p90);
+          env.micMaxDbfs = Math.round(stats.max);
+          env.micLoudShare = Math.round(stats.loudShare * 100) / 100;
+          env.micDevice = stats.device;
+          mic.status = stats.noisy ? 'noisy' : 'quiet';
+          env.micStatus = mic.status.toUpperCase();
+        }
+        updateNoise();
+        render();
+      },
+    );
+  },
+
   noiseRating(el) {
     state.environment.selfRating = el.dataset.value;
     updateNoise();
@@ -808,14 +1004,17 @@ const actions = {
   retake() {
     state = newState();
     state.consent = true;
+    mic = null;
     go(1);
   },
 };
 
-// The user's own rating of the background noise decides: "Loud" makes the result inconclusive.
+// A completed microphone measurement decides; the self-rating only decides when the mic is unavailable.
 function updateNoise() {
   const env = state.environment;
-  env.noiseMasked = env.selfRating === 'LOUD';
+  const measured = mic.status === 'quiet' || mic.status === 'noisy';
+  env.noiseSource = measured ? 'MICROPHONE' : 'SELF_RATING';
+  env.noiseMasked = measured ? mic.status === 'noisy' : env.selfRating === 'LOUD';
 }
 
 function copyText(text, el) {
