@@ -16,7 +16,11 @@ const CONFIG = {
 
   askAsymmetryTone: true,     // extra left 4 kHz tone to catch one-sided loss
   micSeconds: 10,
-  roomNoisyDbfs: -50,         // uncalibrated mic level above which the room counts as noisy
+  // Uncalibrated mic levels (dB re full scale). Noisy if the typical level is high (steady noise)
+  // or loud moments add up to 3 % of the measurement, 0.3 s of 10 s (talking, coughing, doors).
+  roomNoisyDbfs: -50,         // median level
+  roomPeakDbfs: -45,          // a reading above this counts as a loud moment
+  roomLoudShare: 0.03,
   fastMs: 2000,               // a tone set this fast with no +/- presses counts as rushed
 };
 
@@ -97,7 +101,7 @@ const I18N = {
     micAgain: 'Measure again',
     micListening: 'Measuring… please stay silent.',
     micQuiet: 'Your room is quiet enough.',
-    micNoisy: 'Your room seems noisy. Try to find a quieter place, then measure again.',
+    micNoisy: 'We heard noise during the measurement. Stay silent or move to a quieter place, then measure again.',
     micDenied: 'The microphone is not available. Answer the question below to continue.',
     noiseQ: 'How loud is the background noise right now?',
     noiseVerySoft: 'Very soft', noiseSoft: 'Soft', noiseModerate: 'Moderate', noiseLoud: 'Loud',
@@ -206,7 +210,7 @@ const I18N = {
     micAgain: 'قِس مرة أخرى',
     micListening: 'جارٍ القياس… يُرجى التزام الصمت.',
     micQuiet: 'غرفتك هادئة بما يكفي.',
-    micNoisy: 'تبدو غرفتك صاخبة. حاول الانتقال إلى مكان أهدأ ثم أعد القياس.',
+    micNoisy: 'سمعنا ضوضاء أثناء القياس. التزم الصمت أو انتقل إلى مكان أهدأ، ثم أعد القياس.',
     micDenied: 'الميكروفون غير متاح. أجب عن السؤال أدناه للمتابعة.',
     noiseQ: 'ما مستوى الضوضاء المحيطة بك الآن؟',
     noiseVerySoft: 'منخفضة جدًا', noiseSoft: 'منخفضة', noiseModerate: 'متوسطة', noiseLoud: 'مرتفعة',
@@ -402,8 +406,7 @@ const RoomCheck = {
       onLevel(db, p);
       if (p < 1) { this.raf = requestAnimationFrame(tick); return; }
       this.stop();
-      samples.sort((a, b) => a - b);
-      onDone(samples[Math.floor(samples.length / 2)]);
+      onDone(roomStats(samples));
     };
     tick();
   },
@@ -414,6 +417,17 @@ const RoomCheck = {
     if (this.stream) { this.stream.getTracks().forEach((tr) => tr.stop()); this.stream = null; }
   },
 };
+
+function roomStats(samples) {
+  const s = [...samples].sort((a, b) => a - b);
+  const pick = (q) => s[Math.min(s.length - 1, Math.floor(q * s.length))];
+  const median = pick(0.5);
+  const loudShare = s.filter((v) => v > CONFIG.roomPeakDbfs).length / s.length;
+  return {
+    median, p90: pick(0.9), max: s[s.length - 1], loudShare,
+    noisy: median > CONFIG.roomNoisyDbfs || loudShare >= CONFIG.roomLoudShare,
+  };
+}
 
 /* =====================================================================
  * STATE & FLOW
@@ -446,7 +460,7 @@ function newState() {
       mobile: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent),
       volumeInstruction: 100,
     },
-    environment: { micMedianDbfs: null, micStatus: null, selfRating: null, noiseMasked: false },
+    environment: { micMedianDbfs: null, micP90Dbfs: null, micMaxDbfs: null, micStatus: null, selfRating: null, noiseMasked: false },
     measurements: { RIGHT: {}, LEFT: {}, BOTH: {} },
     screenTimesMs: {},
     results: null,
@@ -844,13 +858,16 @@ const actions = {
         const bar = $('#micBar');
         if (bar) bar.style.width = Math.max(2, Math.min(100, (db + 90) * (100 / 70))) + '%';
       },
-      (median) => {
+      (stats) => {
         if (SCREENS[state.index] !== 'quiet') return;
         const env = state.environment;
-        if (median == null) { mic.status = 'denied'; env.micStatus = 'UNAVAILABLE'; }
+        if (stats == null) { mic.status = 'denied'; env.micStatus = 'UNAVAILABLE'; }
         else {
-          env.micMedianDbfs = Math.round(median);
-          mic.status = median > CONFIG.roomNoisyDbfs ? 'noisy' : 'quiet';
+          env.micMedianDbfs = Math.round(stats.median);
+          env.micP90Dbfs = Math.round(stats.p90);
+          env.micMaxDbfs = Math.round(stats.max);
+          env.micLoudShare = Math.round(stats.loudShare * 100) / 100;
+          mic.status = stats.noisy ? 'noisy' : 'quiet';
           env.micStatus = mic.status.toUpperCase();
         }
         updateNoise();
