@@ -10,6 +10,14 @@ import { useInstallPrompt, installBrowser } from '../utils/installPrompt.ts';
 
 // Manual install steps, for browsers that have not offered installation themselves.
 const INSTALL_STEPS: Record<ReturnType<typeof installBrowser>, { ar: string[]; en: string[] }> = {
+  ios: {
+    ar: ['اضغط زر المشاركة (□↑) بجانب العنوان أو أسفل الشاشة', 'اختر «إضافة إلى الشاشة الرئيسية»', 'اضغط «إضافة»، وستظهر أيقونة رؤية الطبية على شاشتك'],
+    en: ['Tap the Share button (□↑) next to the address or at the bottom of the screen', 'Choose “Add to Home Screen”', 'Tap “Add”: the Vision Medical icon appears on your home screen'],
+  },
+  android: {
+    ar: ['اضغط قائمة المتصفح (⋮) أعلى الشاشة', 'اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية»', 'اضغط «تثبيت»'],
+    en: ['Tap the browser menu (⋮) at the top of the screen', 'Choose “Install app” or “Add to Home screen”', 'Tap “Install”'],
+  },
   chrome: {
     ar: ['افتح قائمة Chrome (⋮) أعلى اليمين', 'اختر «إرسال وحفظ ومشاركة» ثم «تثبيت الصفحة كتطبيق…»', 'أو اضغط أيقونة التثبيت في نهاية شريط العنوان'],
     en: ['Open the Chrome menu (⋮) at the top right', 'Choose “Cast, save and share” → “Install page as app…”', 'Or click the install icon at the end of the address bar'],

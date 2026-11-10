@@ -31,8 +31,11 @@ const isStandalone = () =>
   (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
 /** Which manual install steps to show when the browser has not offered installation itself. */
-export const installBrowser = (): 'safari' | 'edge' | 'chrome' | 'other' => {
+export const installBrowser = (): 'ios' | 'android' | 'safari' | 'edge' | 'chrome' | 'other' => {
   const ua = navigator.userAgent;
+  // iPadOS reports itself as a Mac, so also check for a touch screen.
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'ios';
+  if (/Android/.test(ua)) return 'android';
   if (/Edg\//.test(ua)) return 'edge';
   if (/Chrome\//.test(ua)) return 'chrome';
   if (/Safari\//.test(ua)) return 'safari';
